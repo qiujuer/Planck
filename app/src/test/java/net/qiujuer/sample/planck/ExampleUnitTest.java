@@ -1,4 +1,4 @@
-package net.qiujuer.library.planck;
+package net.qiujuer.sample.planck;
 
 import org.junit.Test;
 

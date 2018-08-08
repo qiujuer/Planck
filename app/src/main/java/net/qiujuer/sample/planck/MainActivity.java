@@ -1,4 +1,4 @@
-package net.qiujuer.library.planck;
+package net.qiujuer.sample.planck;
 
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
