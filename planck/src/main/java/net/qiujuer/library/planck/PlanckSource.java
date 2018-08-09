@@ -8,9 +8,39 @@ import java.io.IOException;
  * Create at: 2018/8/8
  */
 public interface PlanckSource {
-    long length();
+    /**
+     * Get current source length.
+     *
+     * @param timeout timeout
+     * @return available length; returns -1 on timeout
+     */
+    long length(int timeout);
 
-    void position(int position) throws IOException;
+    /**
+     * Load form new position index
+     *
+     * @param position new position index
+     * @param timeout  timeout
+     * @return returns the current position on success; returns -1 on timeout
+     * @throws IOException position values invalid
+     */
+    int load(int position, int timeout) throws IOException;
 
-    int read(byte[] buffer, int offset, int size) throws IOException;
+    /**
+     * Get data to buffer
+     *
+     * @param position read to buffer form position index
+     * @param buffer   buffer container
+     * @param offset   buffer offset
+     * @param size     read data max length
+     * @param timeout  timeout
+     * @return number of successful reads, returns -1 on timeout
+     * @throws IOException parameters values invalid
+     */
+    int get(int position, byte[] buffer, int offset, int size, int timeout) throws IOException;
+
+    /**
+     * Close current source
+     */
+    void close();
 }
