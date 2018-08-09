@@ -1,1 +1,1 @@
-include ':app', ':planck'
+include ':app', ':planck', ':integration.okhttp'
