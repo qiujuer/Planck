@@ -3,12 +3,10 @@ package net.qiujuer.library.planck.internal;
 import android.support.annotation.NonNull;
 
 import net.qiujuer.library.planck.PlanckSource;
-import net.qiujuer.library.planck.utils.IoUtil;
+import net.qiujuer.library.planck.internal.section.CacheDataPartial;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.RandomAccessFile;
 
 /**
  * @author qiujuer Email: qiujuer@live.cn
@@ -16,53 +14,29 @@ import java.io.RandomAccessFile;
  * Create at: 2018/8/8
  */
 public class LocalPlanckSource implements PlanckSource {
-    private static final String DEFAULT_READ_FILE_MODE = "r";
-    private final File mFile;
-    private RandomAccessFile mRandomAccessFile;
-    private boolean mInit;
+    private CacheDataPartial mCacheDataPartial;
 
     public LocalPlanckSource(@NonNull File file) {
-        mFile = file;
-    }
-
-    private void init() throws IOException {
-        if (!mInit) {
-            try {
-                mRandomAccessFile = new RandomAccessFile(mFile, DEFAULT_READ_FILE_MODE);
-            } catch (FileNotFoundException e) {
-                throw new IOException("Cannot load local file.");
-            } finally {
-                mInit = true;
-            }
-        } else {
-            if (mRandomAccessFile == null) {
-                throw new IOException("Cannot load local file.");
-            }
-        }
+        mCacheDataPartial = new CacheDataPartial(file);
     }
 
     @Override
     public synchronized long length(int timeout) {
-        return mFile.exists() ? mFile.length() : 0;
+        return mCacheDataPartial.length();
     }
 
     @Override
-    public synchronized int load(int position, int timeout) throws IOException {
-        init();
-        return position;
+    public synchronized long load(long position, int timeout) throws IOException {
+        return mCacheDataPartial.isLoaded(position) ? position : 0;
     }
 
     @Override
-    public synchronized int get(int position, byte[] buffer, int offset, int size, int timeout) throws IOException {
-        init();
-        mRandomAccessFile.seek(position);
-        return mRandomAccessFile.read(buffer, offset, size);
+    public synchronized int get(long position, byte[] buffer, int offset, int size, int timeout) throws IOException {
+        return mCacheDataPartial.get(position, buffer, offset, size);
     }
 
     @Override
     public synchronized void close() {
-        IoUtil.close(mRandomAccessFile);
-        mRandomAccessFile = null;
-        mInit = false;
+        mCacheDataPartial.close();
     }
 }

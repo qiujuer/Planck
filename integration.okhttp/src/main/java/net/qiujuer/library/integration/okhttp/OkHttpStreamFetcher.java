@@ -3,7 +3,7 @@ package net.qiujuer.library.integration.okhttp;
 import android.support.annotation.NonNull;
 
 import net.qiujuer.library.planck.data.StreamFetcher;
-import net.qiujuer.library.planck.exception.HttpException;
+import net.qiujuer.library.planck.exception.NetworkException;
 import net.qiujuer.library.planck.utils.IoUtil;
 
 import java.io.IOException;
@@ -83,7 +83,7 @@ public class OkHttpStreamFetcher implements StreamFetcher, okhttp3.Callback {
             mStream = ContentLengthInputStream.obtain(responseBody.byteStream(), contentLength);
             mCallback.onDataReady(mStream);
         } else {
-            mCallback.onLoadFailed(new HttpException(response.message(), response.code()));
+            mCallback.onLoadFailed(new NetworkException(response.message(), response.code()));
         }
     }
 }

@@ -25,12 +25,12 @@ public class UsageFinalizePlanckSource implements PlanckSource, UsageFinalize {
     }
 
     @Override
-    public int load(int position, int timeout) throws IOException {
+    public long load(long position, int timeout) throws IOException {
         return mPlanckSource.load(position, timeout);
     }
 
     @Override
-    public int get(int position, byte[] buffer, int offset, int size, int timeout) throws IOException {
+    public int get(long position, byte[] buffer, int offset, int size, int timeout) throws IOException {
         return mPlanckSource.get(position, buffer, offset, size, timeout);
     }
 

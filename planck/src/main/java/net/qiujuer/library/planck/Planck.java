@@ -6,7 +6,7 @@ import android.support.annotation.NonNull;
 import net.qiujuer.library.planck.data.DataProvider;
 import net.qiujuer.library.planck.file.FileNameGenerator;
 import net.qiujuer.library.planck.file.Md5FileNameGenerator;
-import net.qiujuer.library.planck.internal.RemotePlanckSource;
+import net.qiujuer.library.planck.internal.PartialPlanckSource;
 import net.qiujuer.library.planck.internal.UsageFinalizePlanckSource;
 import net.qiujuer.library.planck.utils.StorageUtils;
 
@@ -38,8 +38,8 @@ public class Planck {
             if (mSourceMap.containsKey(key)) {
                 source = mSourceMap.get(key);
             } else {
-                RemotePlanckSource remotePlanckSource = new RemotePlanckSource(url, key, mCacheRoot, mDataProvider);
-                source = new UsageFinalizePlanckSource(remotePlanckSource);
+                PartialPlanckSource partialPlanckSource = new PartialPlanckSource(url, key, mCacheRoot, mDataProvider);
+                source = new UsageFinalizePlanckSource(partialPlanckSource);
                 mSourceMap.put(key, source);
             }
             return source;

@@ -21,10 +21,11 @@ public interface PlanckSource {
      *
      * @param position new position index
      * @param timeout  timeout
-     * @return returns the current position on success; returns -1 on timeout
+     * @return returns the current position on success; returns -1 on timeout;
+     * returns -2 on timeout Interrupted
      * @throws IOException position values invalid
      */
-    int load(int position, int timeout) throws IOException;
+    long load(long position, int timeout) throws IOException;
 
     /**
      * Get data to buffer
@@ -37,7 +38,7 @@ public interface PlanckSource {
      * @return number of successful reads, returns -1 on timeout
      * @throws IOException parameters values invalid
      */
-    int get(int position, byte[] buffer, int offset, int size, int timeout) throws IOException;
+    int get(long position, byte[] buffer, int offset, int size, int timeout) throws IOException;
 
     /**
      * Close current source
