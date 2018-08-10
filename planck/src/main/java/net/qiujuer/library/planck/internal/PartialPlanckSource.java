@@ -105,7 +105,7 @@ public class PartialPlanckSource implements PlanckSource {
             if (file.exists()) {
                 partial = new CacheDataPartial(file);
             } else {
-                File tempFile = CacheUtil.generateTempFile(fileName);
+                File tempFile = CacheUtil.generateTempFile(mCacheRoot,fileName);
                 partial = new TempDataPartial(tempFile, mHttpUrl, mProvider);
             }
             dataPartials[i] = partial;

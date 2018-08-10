@@ -12,7 +12,7 @@ public class CacheUtil {
     public static final String CACHE_TEMP_FILE_EXTENSION = ".tmp";
 
     public static String generateName(String name, int index, long startPos, long size, long totalSize) {
-        return String.format("%s-%s-%s/%s/%s", name, index, startPos, size, totalSize);
+        return String.format("%s-%s-%s-%s-%s", name, index, startPos, size, totalSize);
     }
 
     public static boolean isTemp(String fileName) {
@@ -26,14 +26,14 @@ public class CacheUtil {
             return false;
         }
         absolutePath = absolutePath.substring(0, index);
-        File dest = new File(absolutePath, CACHE_FILE_EXTENSION);
+        File dest = new File(absolutePath + CACHE_FILE_EXTENSION);
         return file.renameTo(dest);
     }
 
     public static CacheInfo getCacheInfo(File file) {
         String name = file.getName();
-        name = name.substring(0, name.lastIndexOf("\\."));
-        String[] array = name.split("[-/]");
+        name = name.substring(0, name.lastIndexOf("."));
+        String[] array = name.split("-");
         if (array.length != 5) {
             throw new IllegalArgumentException("File cannot load cache info:" + file.getAbsolutePath());
         }
@@ -50,13 +50,15 @@ public class CacheUtil {
     /**
      * Only create file name, cannot create file in disk
      *
+     * @param rootDir        Cache dir
      * @param fileNameNonExt File name without extension
      * @return Temp file
      */
-    public static File generateTempFile(String fileNameNonExt) {
-        return new File(fileNameNonExt, CacheUtil.CACHE_TEMP_FILE_EXTENSION);
+    public static File generateTempFile(File rootDir, String fileNameNonExt) {
+        return new File(rootDir, fileNameNonExt + CacheUtil.CACHE_TEMP_FILE_EXTENSION);
     }
 
+    @SuppressWarnings("WeakerAccess")
     public static class CacheInfo {
         public final String mName;
         public final int mIndex;

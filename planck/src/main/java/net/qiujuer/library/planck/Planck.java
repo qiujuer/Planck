@@ -79,6 +79,10 @@ public class Planck {
                 mCacheRoot = StorageUtil.getIndividualCacheDirectory(mContext);
             }
 
+            if(!mCacheRoot.exists()){
+                mCacheRoot.mkdirs();
+            }
+
             if (mDataProvider == null) {
                 throw new NullPointerException("mDataProvider cannot null.");
             }

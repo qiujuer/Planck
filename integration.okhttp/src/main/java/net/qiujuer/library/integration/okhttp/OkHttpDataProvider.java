@@ -66,7 +66,7 @@ public class OkHttpDataProvider implements DataProvider {
     }
 
     @Override
-    public StreamFetcher buildStreamFetcher(String url, int position, int size) {
+    public StreamFetcher buildStreamFetcher(String url, long position, long size) {
         return new OkHttpStreamFetcher(url, position, size, mClient);
     }
 }

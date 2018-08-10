@@ -22,8 +22,8 @@ import okhttp3.ResponseBody;
  */
 public class OkHttpStreamFetcher implements StreamFetcher, okhttp3.Callback {
     private final String mUrl;
-    private final int mPosition;
-    private final int mSize;
+    private final long mPosition;
+    private final long mSize;
     private final Call.Factory mClient;
 
     private InputStream mStream;
@@ -32,7 +32,7 @@ public class OkHttpStreamFetcher implements StreamFetcher, okhttp3.Callback {
 
     private volatile Call mCall;
 
-    public OkHttpStreamFetcher(String url, int position, int size, Call.Factory client) {
+    public OkHttpStreamFetcher(String url, long position, long size, Call.Factory client) {
         mUrl = url;
         mPosition = position;
         mSize = size;
@@ -43,7 +43,7 @@ public class OkHttpStreamFetcher implements StreamFetcher, okhttp3.Callback {
     public void loadData(@NonNull Priority priority, @NonNull DataCallback callback) {
         Request.Builder requestBuilder = new Request.Builder().url(mUrl);
         if (mPosition != StreamFetcher.INVALID_INTEGER && mSize != StreamFetcher.INVALID_INTEGER) {
-            final int endIndex = mPosition + mSize;
+            final long endIndex = mPosition + mSize;
             requestBuilder.addHeader("RANGE", "bytes=" + mPosition + "-" + endIndex);
         }
         Request request = requestBuilder.build();
