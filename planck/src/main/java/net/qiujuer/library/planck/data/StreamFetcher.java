@@ -22,7 +22,7 @@ public interface StreamFetcher {
         /**
          * Called with the loaded data if the load succeeded, or with {@code null} if the load failed.
          */
-        void onDataReady(@Nullable InputStream data);
+        void onDataReady(@Nullable InputStream stream);
 
         /**
          * Called when the load fails.

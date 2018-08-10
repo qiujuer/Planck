@@ -17,8 +17,8 @@ import static android.os.Environment.MEDIA_MOUNTED;
  * @version 1.0.0
  * Create at: 2018/8/8
  */
-public class StorageUtils {
-    private static final String TAG = "StorageUtils";
+public class StorageUtil {
+    private static final String TAG = "StorageUtil";
     private static final String INDIVIDUAL_DIR_NAME = "video-cache";
 
     /**

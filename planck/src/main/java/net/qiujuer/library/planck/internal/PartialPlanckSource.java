@@ -7,6 +7,7 @@ import net.qiujuer.library.planck.exception.NetworkException;
 import net.qiujuer.library.planck.internal.section.CacheDataPartial;
 import net.qiujuer.library.planck.internal.section.DataPartial;
 import net.qiujuer.library.planck.internal.section.TempDataPartial;
+import net.qiujuer.library.planck.utils.CacheUtil;
 
 import java.io.File;
 import java.io.FilenameFilter;
@@ -19,7 +20,6 @@ import java.util.concurrent.TimeoutException;
  * Create at: 2018/8/9
  */
 public class PartialPlanckSource implements PlanckSource {
-    public static final String PLANCK_FILE_EXTENSION = ".mp";
     private final int mMaxPartialSize = 64 * 1024; // 64Kb
     private final String mHttpUrl;
     private final String mFileNamePrefix;
@@ -85,24 +85,28 @@ public class PartialPlanckSource implements PlanckSource {
                 return;
             }
 
-            totalLength = getTotalLengthFormFile(firstChildFile);
-            partialSize = getPartialSizeFormFile(firstChildFile);
+            CacheUtil.CacheInfo cacheInfo = CacheUtil.getCacheInfo(firstChildFile);
+
+            totalLength = cacheInfo.mTotalSize;
+            partialSize = cacheInfo.mSize;
         }
 
         // The number of files is equal to the number of partial files that are all loaded
         final int fileCount = (int) ((totalLength + partialSize - 1) / partialSize);
         DataPartial[] dataPartials = new DataPartial[fileCount];
         for (int i = 0; i < fileCount; i++) {
-            String fileName = String.format("%s-%s-%s", fileNamePrefix, i, totalLength);
-            String fileNameWithExt = fileName + PLANCK_FILE_EXTENSION;
+            final long currentPartStartPos = partialSize * i;
+            final long currentPartSize = Math.min(partialSize, totalLength - partialSize * i);
+
+            final String fileName = CacheUtil.generateName(fileNamePrefix, i, currentPartStartPos, currentPartSize, totalLength);
+            String fileNameWithExt = fileName + CacheUtil.CACHE_FILE_EXTENSION;
             File file = new File(fileNameWithExt);
             DataPartial partial;
             if (file.exists()) {
                 partial = new CacheDataPartial(file);
             } else {
-                long childPartialSize = Math.min(partialSize, totalLength - partialSize * i);
-                File tempFile = TempDataPartial.findOrCreateTempFile(fileName, childPartialSize);
-                partial = new TempDataPartial(tempFile);
+                File tempFile = CacheUtil.generateTempFile(fileName);
+                partial = new TempDataPartial(tempFile, mHttpUrl, mProvider);
             }
             dataPartials[i] = partial;
         }
@@ -155,23 +159,6 @@ public class PartialPlanckSource implements PlanckSource {
         }
         for (DataPartial dataPartial : mDataPartials) {
             dataPartial.close();
-        }
-    }
-
-    private static long getTotalLengthFormFile(File file) {
-        String name = file.getName();
-        int index = name.lastIndexOf("-");
-        int endIndex = name.lastIndexOf(".");
-        String numberStr = name.substring(index, endIndex);
-        return Long.parseLong(numberStr);
-    }
-
-    private static long getPartialSizeFormFile(File file) {
-        if (file.getName().endsWith(TempDataPartial.TEMP_FILE_SUFFIX)) {
-            // This is temp file, we must minus temp footer len
-            return file.length() - TempDataPartial.TEMP_DATA_FOOTER_LEN;
-        } else {
-            return file.length();
         }
     }
 }

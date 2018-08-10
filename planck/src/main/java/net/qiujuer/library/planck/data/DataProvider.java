@@ -8,5 +8,5 @@ package net.qiujuer.library.planck.data;
 public interface DataProvider {
     DataInfo loadDataInfo(String url);
 
-    StreamFetcher buildStreamFetcher(String url, int position, int size);
+    StreamFetcher buildStreamFetcher(String url, long position, long size);
 }

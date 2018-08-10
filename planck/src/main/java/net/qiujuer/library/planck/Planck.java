@@ -8,7 +8,7 @@ import net.qiujuer.library.planck.file.FileNameGenerator;
 import net.qiujuer.library.planck.file.Md5FileNameGenerator;
 import net.qiujuer.library.planck.internal.PartialPlanckSource;
 import net.qiujuer.library.planck.internal.UsageFinalizePlanckSource;
-import net.qiujuer.library.planck.utils.StorageUtils;
+import net.qiujuer.library.planck.utils.StorageUtil;
 
 import java.io.File;
 import java.util.HashMap;
@@ -76,7 +76,7 @@ public class Planck {
 
         public Planck build() {
             if (mCacheRoot == null) {
-                mCacheRoot = StorageUtils.getIndividualCacheDirectory(mContext);
+                mCacheRoot = StorageUtil.getIndividualCacheDirectory(mContext);
             }
 
             if (mDataProvider == null) {
