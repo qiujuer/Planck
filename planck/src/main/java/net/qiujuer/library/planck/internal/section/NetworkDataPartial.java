@@ -9,14 +9,14 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.RandomAccessFile;
+import java.util.concurrent.TimeoutException;
 
 /**
- *
  * @author qiujuer Email: qiujuer@live.cn
  * @version 1.0.0
  * Create at: 2018/8/9
  */
-public class NetworkDataPartial implements DataPartial ,StreamFetcher.DataCallback{
+public class NetworkDataPartial implements DataPartial, StreamFetcher.DataCallback {
     private final StreamFetcher mFetcher;
     private final File mTempFile;
     private long mStartPosition;
@@ -36,12 +36,12 @@ public class NetworkDataPartial implements DataPartial ,StreamFetcher.DataCallba
     }
 
     @Override
-    public boolean isLoaded(long position) {
-        return false;
+    public long load(long position, int timeout) throws IOException, TimeoutException {
+        return 0;
     }
 
     @Override
-    public int get(long position, byte[] buffer, int offset, int size) throws IOException {
+    public int get(long position, byte[] buffer, int offset, int size, int timeout) throws IOException, TimeoutException {
         return 0;
     }
 

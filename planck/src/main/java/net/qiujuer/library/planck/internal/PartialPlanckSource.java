@@ -11,6 +11,7 @@ import net.qiujuer.library.planck.internal.section.TempDataPartial;
 import java.io.File;
 import java.io.FilenameFilter;
 import java.io.IOException;
+import java.util.concurrent.TimeoutException;
 
 /**
  * @author qiujuer Email: qiujuer@live.cn
@@ -120,44 +121,31 @@ public class PartialPlanckSource implements PlanckSource {
     }
 
     @Override
-    public long load(long position, int timeout) throws IOException {
+    public long load(long position, int timeout) throws IOException, TimeoutException {
         init();
 
-        int index = (int) (position / mPartialSize);
-        long partialPosition = position - (index * mPartialSize);
-        DataPartial dataPartial = mDataPartials[index];
+        final long partialSize = mPartialSize;
 
-        boolean loaded = dataPartial.isLoaded(partialPosition);
-        if (!loaded) {
-            try {
-                Thread.sleep(timeout);
-                loaded = dataPartial.isLoaded(partialPosition);
-                if (!loaded) {
-                    return -1;
-                }
-            } catch (InterruptedException e) {
-                return -2;
-            }
-        }
+        int partIndex = (int) (position / partialSize);
+        long partPos = position - (partIndex * partialSize);
+        DataPartial partial = mDataPartials[partIndex];
+        long partReadablePos = partial.load(partPos, timeout);
 
-        return position;
+        return partialSize * (partIndex + 1) + partReadablePos;
     }
 
 
     @Override
-    public int get(long position, byte[] buffer, int offset, int size, int timeout) throws IOException {
+    public int get(long position, byte[] buffer, int offset, int size, int timeout) throws IOException, TimeoutException {
         init();
 
-        long loadPos = position + size;
-        long loadPosRet = load(loadPos, timeout);
-        if (loadPos == loadPosRet) {
-            int index = (int) (position / mPartialSize);
-            long partialPosition = position - (index * mPartialSize);
-            DataPartial dataPartial = mDataPartials[index];
-            return dataPartial.get(partialPosition, buffer, offset, size);
-        } else {
-            return (int) loadPosRet;
-        }
+        final long partialSize = mPartialSize;
+
+        int partIndex = (int) (position / partialSize);
+        long partPos = position - (partIndex * partialSize);
+        DataPartial partial = mDataPartials[partIndex];
+
+        return partial.get(partPos, buffer, offset, size, timeout);
     }
 
     @Override

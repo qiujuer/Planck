@@ -5,6 +5,7 @@ import android.support.annotation.NonNull;
 import net.qiujuer.library.planck.PlanckSource;
 
 import java.io.IOException;
+import java.util.concurrent.TimeoutException;
 
 /**
  * @author qiujuer Email: qiujuer@live.cn
@@ -24,13 +25,14 @@ public class UsageFinalizePlanckSource implements PlanckSource, UsageFinalize {
         return mPlanckSource.length(timeout);
     }
 
+
     @Override
-    public long load(long position, int timeout) throws IOException {
+    public long load(long position, int timeout) throws IOException, TimeoutException {
         return mPlanckSource.load(position, timeout);
     }
 
     @Override
-    public int get(long position, byte[] buffer, int offset, int size, int timeout) throws IOException {
+    public int get(long position, byte[] buffer, int offset, int size, int timeout) throws IOException, TimeoutException {
         return mPlanckSource.get(position, buffer, offset, size, timeout);
     }
 

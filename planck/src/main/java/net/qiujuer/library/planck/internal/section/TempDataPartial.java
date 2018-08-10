@@ -6,6 +6,7 @@ import net.qiujuer.library.planck.utils.IoUtil;
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.util.concurrent.TimeoutException;
 
 /**
  * 缓存文件包括尾部8字节描述当前下载情况
@@ -28,18 +29,8 @@ public class TempDataPartial extends CacheDataPartial {
     }
 
     @Override
-    public boolean isLoaded(long position) {
-        boolean superIsLoaded = super.isLoaded(position);
-        if (superIsLoaded) {
-            try {
-                mRandomAccessFile.seek(length());
-                long currentLength = mRandomAccessFile.readLong();
-                return currentLength >= position;
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-        return false;
+    public long load(long position, int timeout) throws IOException, TimeoutException {
+        return super.load(position, timeout) - TEMP_DATA_FOOTER_LEN;
     }
 
     public static File findOrCreateTempFile(String fileNameNonExt, long fileSize) {

@@ -9,6 +9,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.util.concurrent.TimeoutException;
 
 /**
  * @author qiujuer Email: qiujuer@live.cn
@@ -51,14 +52,22 @@ public class CacheDataPartial implements DataPartial {
     }
 
     @Override
-    public boolean isLoaded(long position) {
-        init();
-        return true;
+    public long load(long position, int timeout) throws IOException, TimeoutException {
+        try {
+            init();
+        } catch (FileException e) {
+            throw new IOException(e.getMessage(), e.getCause());
+        }
+        return mFileLength - 1;
     }
 
     @Override
-    public int get(long position, byte[] buffer, int offset, int size) throws IOException {
-        init();
+    public int get(long position, byte[] buffer, int offset, int size, int timeout) throws IOException {
+        try {
+            init();
+        } catch (FileException e) {
+            throw new IOException(e.getMessage(), e.getCause());
+        }
         mRandomAccessFile.seek(position);
         return mRandomAccessFile.read(buffer, offset, size);
     }
