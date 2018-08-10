@@ -20,7 +20,7 @@ import java.util.concurrent.TimeoutException;
  * Create at: 2018/8/9
  */
 public class PartialPlanckSource implements PlanckSource {
-    private final int mMaxPartialSize = 64 * 1024; // 64Kb
+    private final int mMaxPartialSize = 512 * 1024; // 64Kb
     private final String mHttpUrl;
     private final String mFileNamePrefix;
     private final File mCacheRoot;
@@ -105,7 +105,7 @@ public class PartialPlanckSource implements PlanckSource {
             if (file.exists()) {
                 partial = new CacheDataPartial(file);
             } else {
-                File tempFile = CacheUtil.generateTempFile(mCacheRoot,fileName);
+                File tempFile = CacheUtil.generateTempFile(mCacheRoot, fileName);
                 partial = new TempDataPartial(tempFile, mHttpUrl, mProvider);
             }
             dataPartials[i] = partial;

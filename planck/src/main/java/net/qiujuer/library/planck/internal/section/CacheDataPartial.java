@@ -63,7 +63,17 @@ public class CacheDataPartial implements DataPartial {
 
     @Override
     public final int get(long position, byte[] buffer, int offset, int size, int timeout) throws IOException, TimeoutException {
+        final long len = length();
+        if (position > len || size <= 0) {
+            throw new IOException("Read parameter anomaly, pos:" + position + ", size:" + size + ", offset:" + offset);
+        }
+
+        if ((position + size) > len) {
+            size = (int) (len - position);
+        }
+
         init();
+
         return doGet(position, buffer, offset, size, timeout);
     }
 
@@ -72,7 +82,7 @@ public class CacheDataPartial implements DataPartial {
         doClose();
     }
 
-    protected void doInit() throws IOException {
+    protected synchronized void doInit() throws IOException {
         try {
             mRandomAccessFile = new RandomAccessFile(mFile, mFileModel);
         } catch (FileNotFoundException e) {
@@ -88,12 +98,19 @@ public class CacheDataPartial implements DataPartial {
         return mFileLength - 1;
     }
 
-    protected int doGet(long position, byte[] buffer, int offset, int size, int timeout) throws IOException, TimeoutException {
+    protected synchronized int doGet(long position, byte[] buffer, int offset, int size, int timeout) throws IOException, TimeoutException {
+        if (position < 0) {
+            throw new IOException("doGet() called with1: position = [" + position + "], offset = [" + offset + "], size = [" + size + "], timeout = [" + timeout + "]");
+        }
         mRandomAccessFile.seek(position);
-        return mRandomAccessFile.read(buffer, offset, size);
+        int count = mRandomAccessFile.read(buffer, offset, size);
+        if (count < 0) {
+            throw new IOException("doGet() called with2: position = [" + position + "], offset = [" + offset + "], size = [" + size + "], timeout = [" + timeout + "]");
+        }
+        return count;
     }
 
-    protected void doClose() {
+    protected synchronized void doClose() {
         IoUtil.close(mRandomAccessFile);
         mRandomAccessFile = null;
         mInit = false;

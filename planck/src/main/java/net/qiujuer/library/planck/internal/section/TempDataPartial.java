@@ -14,6 +14,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.RandomAccessFile;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * 缓存文件包括尾部8字节描述当前下载情况
@@ -26,9 +27,9 @@ public class TempDataPartial extends CacheDataPartial implements StreamFetcher.D
     private static final int TEMP_DATA_FOOTER_LEN = 8;
     private final String mUrl;
     private final DataProvider mProvider;
+    private final AtomicLong mWritePos = new AtomicLong();
     private StreamFetcher mFetcher;
     private CacheUtil.CacheInfo mCacheInfo;
-    private long mWritePos = 0;
 
     public TempDataPartial(File file, String url, DataProvider provider) {
         super(file, CacheDataPartial.DEFAULT_WRITE_FILE_MODE);
@@ -53,12 +54,12 @@ public class TempDataPartial extends CacheDataPartial implements StreamFetcher.D
 
         if (fileDataLength > TEMP_DATA_FOOTER_LEN) {
             mRandomAccessFile.seek(fileDataLength - TEMP_DATA_FOOTER_LEN);
-            mWritePos = mRandomAccessFile.readLong();
+            mWritePos.set(mRandomAccessFile.readLong());
         }
 
-        if (mFetcher == null) {
-            long downStart = mCacheInfo.mStartPos + mWritePos;
-            long downSize = mCacheInfo.mSize - mWritePos;
+        if (mWritePos.get() < mCacheInfo.mSize && mFetcher == null) {
+            long downStart = mCacheInfo.mStartPos + mWritePos.get();
+            long downSize = mCacheInfo.mSize - mWritePos.get();
             mFetcher = mProvider.buildStreamFetcher(mUrl, downStart, downSize);
             mFetcher.loadData(StreamFetcher.Priority.HIGH, this);
         }
@@ -71,30 +72,30 @@ public class TempDataPartial extends CacheDataPartial implements StreamFetcher.D
 
     @Override
     protected long doLoad(long position, int timeout) throws IOException, TimeoutException {
-        if (mWritePos >= position) {
-            return mWritePos;
+        if (mWritePos.get() >= position) {
+            return mWritePos.get();
         }
 
         final long finishWaitTime = SystemClock.currentThreadTimeMillis() + timeout;
-        while (position < mWritePos) {
+        while (mWritePos.get() < position) {
             long currentTime = SystemClock.currentThreadTimeMillis();
             if (currentTime > finishWaitTime) {
-                throw new TimeoutException("Load data timeout, pos:" + position + ", currentPos:" + mWritePos);
+                throw new TimeoutException("Load data timeout, pos:" + position + ", currentPos:" + mWritePos.get());
             }
 
             synchronized (this) {
                 try {
                     this.wait(finishWaitTime - currentTime);
                 } catch (InterruptedException e) {
-                    throw new IOException("Load data timeout InterruptedException, pos:" + position + ", currentPos:" + mWritePos);
+                    throw new IOException("Load data timeout InterruptedException, pos:" + position + ", currentPos:" + mWritePos.get());
                 }
             }
         }
-        return mWritePos;
+        return mWritePos.get();
     }
 
     @Override
-    protected int doGet(long position, byte[] buffer, int offset, int size, int timeout) throws IOException, TimeoutException {
+    protected synchronized int doGet(long position, byte[] buffer, int offset, int size, int timeout) throws IOException, TimeoutException {
         long loadPos = position + size;
         doLoad(loadPos, timeout);
         return super.doGet(position, buffer, offset, size, timeout);
@@ -103,10 +104,7 @@ public class TempDataPartial extends CacheDataPartial implements StreamFetcher.D
     @Override
     protected void doClose() {
         super.doClose();
-        if (mFetcher != null) {
-            mFetcher.cleanup();
-            mFetcher = null;
-        }
+        releaseFetcher();
     }
 
     @Override
@@ -115,22 +113,23 @@ public class TempDataPartial extends CacheDataPartial implements StreamFetcher.D
             return;
         }
 
-        final RandomAccessFile randomAccessFile = mRandomAccessFile;
         final byte[] buffer = new byte[512];
         try {
-            long waitCount = mCacheInfo.mSize - mWritePos;
+            long needDownloadSize = mCacheInfo.mSize - mWritePos.get();
             int errorCount = 3;
-            while (waitCount > 0) {
+            while (needDownloadSize > 0) {
                 int size = stream.read(buffer);
                 if (size > 0) {
                     errorCount = 3;
-                    size = (int) Math.min(size, waitCount);
+                    size = (int) Math.min(size, needDownloadSize);
+
+                    final RandomAccessFile randomAccessFile = mRandomAccessFile;
                     synchronized (this) {
-                        randomAccessFile.seek(mWritePos);
+                        randomAccessFile.seek(mWritePos.get());
                         randomAccessFile.write(buffer, 0, size);
-                        mWritePos += size;
-                        randomAccessFile.writeLong(mWritePos);
-                        waitCount -= size;
+                        long pos = mWritePos.addAndGet(size);
+                        randomAccessFile.writeLong(pos);
+                        needDownloadSize -= size;
                         try {
                             this.notifyAll();
                         } catch (Exception ignore) {
@@ -145,12 +144,16 @@ public class TempDataPartial extends CacheDataPartial implements StreamFetcher.D
         } catch (IOException e) {
             e.printStackTrace();
         } finally {
-            mFetcher.cleanup();
+            releaseFetcher();
         }
     }
 
     @Override
     public void onLoadFailed(@NonNull Exception e) {
+        releaseFetcher();
+    }
+
+    private void releaseFetcher() {
         if (mFetcher != null) {
             mFetcher.cleanup();
             mFetcher = null;

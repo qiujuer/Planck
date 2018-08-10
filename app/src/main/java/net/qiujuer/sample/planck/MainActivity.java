@@ -2,6 +2,7 @@ package net.qiujuer.sample.planck;
 
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
+import android.util.Log;
 
 import net.qiujuer.library.integration.okhttp.OkHttpDataProvider;
 import net.qiujuer.library.planck.Planck;
@@ -25,11 +26,15 @@ public class MainActivity extends AppCompatActivity implements Runnable {
 
         PlanckSource planckSource = planck.get("http://mysns1.video.meipai.com/6423448346911900673.mp4");
         long length = planckSource.length(10000);
-        byte[] buffer1 = new byte[20];
-        byte[] buffer2 = new byte[20];
+        byte[] buffer1 = new byte[1024 * 64];
         try {
-            planckSource.get(0, buffer1, 0, 10, 10000);
-            planckSource.get(5, buffer2, 0, 10, 10000);
+            long pos = 0;
+            while (length > 0) {
+                int size = planckSource.get(pos, buffer1, 0, 64 * 1024, 10000);
+                Log.e("TAG", "Size:" + size + " length:" + length);
+                pos += size;
+                length -= size;
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }
