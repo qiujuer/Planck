@@ -12,9 +12,9 @@ import java.io.File;
  * @version 1.0.0
  * Create at: 2018/8/8
  */
-public class LocalPlanckSource extends CacheDataPartial implements PlanckSource {
+class LocalPlanckSource extends CacheDataPartial implements PlanckSource {
 
-    public LocalPlanckSource(@NonNull File file) {
+    LocalPlanckSource(@NonNull File file) {
         super(file);
     }
 

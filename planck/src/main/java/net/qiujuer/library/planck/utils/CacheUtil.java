@@ -11,8 +11,8 @@ public class CacheUtil {
     public static final String CACHE_FILE_EXTENSION = ".mp";
     public static final String CACHE_TEMP_FILE_EXTENSION = ".tmp";
 
-    public static String generateName(String name, int index, long startPos, long size, long totalSize) {
-        return String.format("%s-%s-%s-%s-%s", name, index, startPos, size, totalSize);
+    public static String generateName(String name, int index, long startPos, long size, long totalSize, boolean supportAcceptRange) {
+        return String.format("%s-%s-%s-%s-%s-%s", name, index, startPos, size, totalSize, supportAcceptRange ? "A" : "B");
     }
 
     public static boolean isTemp(String fileName) {
@@ -31,10 +31,9 @@ public class CacheUtil {
     }
 
     public static CacheInfo getCacheInfo(File file) {
-        String name = file.getName();
-        name = name.substring(0, name.lastIndexOf("."));
+        String name = removeNameExtension(file.getName());
         String[] array = name.split("-");
-        if (array.length != 5) {
+        if (array.length != 6) {
             throw new IllegalArgumentException("File cannot load cache info:" + file.getAbsolutePath());
         }
 
@@ -43,8 +42,29 @@ public class CacheUtil {
         long cStartPos = Long.parseLong(array[2]);
         long cSize = Long.parseLong(array[3]);
         long cTotalSize = Long.parseLong(array[4]);
+        boolean cAcceptRange = array[5].equals("A");
 
-        return new CacheInfo(cName, cIndex, cStartPos, cSize, cTotalSize);
+        return new CacheInfo(cName, cIndex, cStartPos, cSize, cTotalSize, cAcceptRange);
+    }
+
+
+    public static String removeNameExtension(String fileName) {
+        int index = fileName.lastIndexOf(".");
+        if (index == -1) {
+            return fileName;
+        }
+        return fileName.substring(0, index);
+    }
+
+    /**
+     * Only create file name, cannot create file in disk
+     *
+     * @param rootDir        Cache Temp dir
+     * @param fileNameNonExt File name without extension
+     * @return Temp file
+     */
+    public static File generateTempFile(File rootDir, String fileNameNonExt) {
+        return new File(rootDir, fileNameNonExt + CacheUtil.CACHE_TEMP_FILE_EXTENSION);
     }
 
     /**
@@ -52,10 +72,10 @@ public class CacheUtil {
      *
      * @param rootDir        Cache dir
      * @param fileNameNonExt File name without extension
-     * @return Temp file
+     * @return Cache file
      */
-    public static File generateTempFile(File rootDir, String fileNameNonExt) {
-        return new File(rootDir, fileNameNonExt + CacheUtil.CACHE_TEMP_FILE_EXTENSION);
+    public static File generateCacheFile(File rootDir, String fileNameNonExt) {
+        return new File(rootDir, fileNameNonExt + CacheUtil.CACHE_FILE_EXTENSION);
     }
 
     @SuppressWarnings("WeakerAccess")
@@ -65,13 +85,15 @@ public class CacheUtil {
         public final long mStartPos;
         public final long mSize;
         public final long mTotalSize;
+        public final boolean mAcceptRange;
 
-        public CacheInfo(String name, int index, long startPos, long size, long totalSize) {
+        public CacheInfo(String name, int index, long startPos, long size, long totalSize, boolean acceptRange) {
             mName = name;
             mIndex = index;
             mStartPos = startPos;
             mSize = size;
             mTotalSize = totalSize;
+            mAcceptRange = acceptRange;
         }
     }
 }
