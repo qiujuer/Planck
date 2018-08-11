@@ -140,19 +140,19 @@ public class ProxyPlanckSource implements PlanckSource, UsageFinalizer {
     private boolean attachWithNetwork(final String httpUrl, final String fileNamePrefix) {
         final long totalSize;
         final long partialSize;
-        final boolean acceptRange;
+        final boolean supportRandomReading;
         DataInfo dataInfo = mPlanckStore.dataProvider().loadDataInfo(httpUrl);
         if (dataInfo == null) {
             attachSource(null);
             return false;
         } else {
             totalSize = dataInfo.getLength();
-            acceptRange = dataInfo.isSupportAcceptRangesOperation();
-            partialSize = acceptRange ? mPlanckStore.maxPartialSize(totalSize) : totalSize;
+            supportRandomReading = dataInfo.isSupportRandomReading();
+            partialSize = supportRandomReading ? mPlanckStore.maxPartialSize(totalSize) : totalSize;
         }
 
         attachWithPartialCacheOrTemp(httpUrl, fileNamePrefix,
-                totalSize, partialSize, acceptRange, mPlanckStore.dataProvider());
+                totalSize, partialSize, supportRandomReading, mPlanckStore.dataProvider());
         return true;
     }
 
@@ -261,7 +261,7 @@ public class ProxyPlanckSource implements PlanckSource, UsageFinalizer {
             CacheUtil.CacheInfo cacheInfo = CacheUtil.getCacheInfo(firstChildFile);
             final long totalSize = cacheInfo.mTotalSize;
             final long partialSize = cacheInfo.mSize;
-            final boolean acceptRange = cacheInfo.mAcceptRange;
+            final boolean acceptRange = cacheInfo.mSupportRandomReading;
             attachWithPartialCacheOrTemp(sourceUrl, fileNamePrefix, totalSize, partialSize, acceptRange, mPlanckStore.dataProvider());
             return true;
         }

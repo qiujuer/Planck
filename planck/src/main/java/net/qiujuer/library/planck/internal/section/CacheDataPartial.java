@@ -2,7 +2,9 @@ package net.qiujuer.library.planck.internal.section;
 
 import android.support.annotation.NonNull;
 
+import net.qiujuer.library.planck.PlanckSource;
 import net.qiujuer.library.planck.exception.FileException;
+import net.qiujuer.library.planck.exception.StreamInterruptException;
 import net.qiujuer.library.planck.utils.IoUtil;
 
 import java.io.File;
@@ -59,7 +61,11 @@ public class CacheDataPartial implements DataPartial {
     @Override
     public final long load(long position, int timeout) throws IOException, TimeoutException {
         init();
-        return doLoad(position, timeout);
+        try {
+            return doLoad(position, timeout);
+        } catch (StreamInterruptException ignored) {
+            return PlanckSource.INVALID_VALUES_SOURCE_STREAM_INTERRUPT;
+        }
     }
 
     @Override

@@ -11,8 +11,8 @@ public class CacheUtil {
     public static final String CACHE_FILE_EXTENSION = ".mp";
     public static final String CACHE_TEMP_FILE_EXTENSION = ".tmp";
 
-    public static String generateName(String name, int index, long startPos, long size, long totalSize, boolean supportAcceptRange) {
-        return String.format("%s-%s-%s-%s-%s-%s", name, index, startPos, size, totalSize, supportAcceptRange ? "A" : "B");
+    public static String generateName(String name, int index, long startPos, long size, long totalSize, boolean supportRandomReading) {
+        return String.format("%s-%s-%s-%s-%s-%s", name, index, startPos, size, totalSize, supportRandomReading ? "A" : "B");
     }
 
     public static boolean isTemp(String fileName) {
@@ -85,15 +85,15 @@ public class CacheUtil {
         public final long mStartPos;
         public final long mSize;
         public final long mTotalSize;
-        public final boolean mAcceptRange;
+        public final boolean mSupportRandomReading;
 
-        public CacheInfo(String name, int index, long startPos, long size, long totalSize, boolean acceptRange) {
+        public CacheInfo(String name, int index, long startPos, long size, long totalSize, boolean supportRandomReading) {
             mName = name;
             mIndex = index;
             mStartPos = startPos;
             mSize = size;
             mTotalSize = totalSize;
-            mAcceptRange = acceptRange;
+            mSupportRandomReading = supportRandomReading;
         }
     }
 }

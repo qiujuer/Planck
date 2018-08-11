@@ -14,7 +14,7 @@ public class DataInfo {
         mSupportAcceptRangesOperation = supportAcceptRangesOperation;
     }
 
-    public boolean isSupportAcceptRangesOperation() {
+    public boolean isSupportRandomReading() {
         return mSupportAcceptRangesOperation;
     }
 

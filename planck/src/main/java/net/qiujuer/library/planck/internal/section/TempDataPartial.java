@@ -4,9 +4,11 @@ import android.os.SystemClock;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 
+import net.qiujuer.library.planck.PlanckSource;
 import net.qiujuer.library.planck.data.DataProvider;
 import net.qiujuer.library.planck.data.StreamFetcher;
 import net.qiujuer.library.planck.exception.FileException;
+import net.qiujuer.library.planck.exception.StreamInterruptException;
 import net.qiujuer.library.planck.utils.CacheUtil;
 
 import java.io.File;
@@ -24,14 +26,17 @@ import java.util.concurrent.atomic.AtomicLong;
  * Create at: 2018/8/9
  */
 public class TempDataPartial extends CacheDataPartial implements StreamFetcher.DataCallback {
+    private static final int MAX_READ_ERROR_COUNT = 3;
     private static final int TEMP_DATA_FOOTER_LEN = 8;
+    private static final int TEMP_STREAM_BUFFER_SIZE = 512;
     private final String mUrl;
     private final DataProvider mProvider;
     private final AtomicLong mWritePos = new AtomicLong();
     private final Object mDataLock = mWritePos;
     private final Object mFetcherLock = new Object();
+    private final CacheUtil.CacheInfo mCacheInfo;
+
     private StreamFetcher mFetcher;
-    private CacheUtil.CacheInfo mCacheInfo;
 
     public TempDataPartial(File file, String url, DataProvider provider) {
         super(file, CacheDataPartial.DEFAULT_WRITE_FILE_MODE);
@@ -69,46 +74,60 @@ public class TempDataPartial extends CacheDataPartial implements StreamFetcher.D
     }
 
     @Override
-    protected long doLoad(long position, int timeout) throws IOException, TimeoutException {
-        if (mWritePos.get() >= position) {
-            return mWritePos.get();
+    protected long doLoad(final long position, int timeout) throws IOException, TimeoutException {
+        AtomicLong writePos = mWritePos;
+
+        if (writePos.get() >= position) {
+            return writePos.get();
         }
 
-        if (mWritePos.get() < mCacheInfo.mSize) {
+        if (writePos.get() < mCacheInfo.mSize) {
             retryLoadDataFromProvider();
         }
 
         final long finishWaitTime = SystemClock.elapsedRealtime() + timeout;
-        while (mWritePos.get() < position) {
+        while (writePos.get() < position) {
             long currentTime = SystemClock.elapsedRealtime();
             if (currentTime > finishWaitTime) {
-                throw new TimeoutException("Load data timeout, pos:" + position + ", currentPos:" + mWritePos.get());
+                throw new TimeoutException("Load data timeout, targetPos:" + position + ", currentPos:" + writePos.get());
             }
 
+            // Waiting position changed
             synchronized (mDataLock) {
-                try {
-                    mDataLock.wait(finishWaitTime - currentTime);
-                    if (mFetcher == null && mWritePos.get() < position) {
-                        // Abnormal awaken
-                        retryLoadDataFromProvider();
-                        break;
+                // Secondary confirmation
+                if (writePos.get() < position) {
+                    try {
+                        mDataLock.wait(finishWaitTime - currentTime);
+                    } catch (InterruptedException e) {
+                        throw new IOException("Load data thread InterruptedException, targetPos:" + position + ", currentPos:" + writePos.get());
                     }
-                } catch (InterruptedException e) {
-                    throw new IOException("Load data timeout InterruptedException, pos:" + position + ", currentPos:" + mWritePos.get());
                 }
             }
+
+            // After waking up, need to check if the exception caused it
+            if (mFetcher == null && writePos.get() < position) {
+                // Abnormal awaken
+                retryLoadDataFromProvider();
+                // Throw custom exception
+                throw new StreamInterruptException("Load data StreamInterruptException, targetPos:" + position + ", currentPos:" + writePos.get());
+            }
         }
-        return mWritePos.get();
+        return writePos.get();
     }
 
     @Override
     protected synchronized int doGet(long position, byte[] buffer, int offset, int size, int timeout) throws IOException, TimeoutException {
         long loadPos = position + size;
-        long loadEndPos = doLoad(loadPos, timeout);
-        if (loadEndPos > position) {
-            return super.doGet(position, buffer, offset, size, timeout);
-        } else {
-            return 0;
+
+        try {
+            long loadEndPos = doLoad(loadPos, timeout);
+            if (loadEndPos > position) {
+                return super.doGet(position, buffer, offset, size, timeout);
+            } else {
+                return 0;
+            }
+        } catch (StreamInterruptException ignored) {
+            return PlanckSource.INVALID_VALUES_SOURCE_STREAM_INTERRUPT;
         }
     }
 
@@ -124,35 +143,58 @@ public class TempDataPartial extends CacheDataPartial implements StreamFetcher.D
             return;
         }
 
-        final byte[] buffer = new byte[512];
+        final AtomicLong writePos = mWritePos;
+        final int bufferSize = TEMP_STREAM_BUFFER_SIZE;
+        final byte[] buffer = new byte[bufferSize];
         try {
-            long needDownloadSize = mCacheInfo.mSize - mWritePos.get();
-            int errorCount = 3;
-            while (needDownloadSize > 0) {
-                int size = stream.read(buffer);
-                if (size > 0) {
-                    errorCount = 3;
-                    size = (int) Math.min(size, needDownloadSize);
+            // Current cache position
+            final long cacheWritePos = writePos.get();
 
-                    final RandomAccessFile randomAccessFile = mRandomAccessFile;
+            if (!mCacheInfo.mSupportRandomReading && cacheWritePos > 0) {
+                // Un SupportRandomReading
+                // Read the data and discard it
+                int totalReadErrorCount = MAX_READ_ERROR_COUNT;
+                long discardedCountSize = cacheWritePos;
+                while (discardedCountSize > 0) {
+                    int maxOnceReadSize = (int) Math.min(bufferSize, discardedCountSize);
+                    int size = stream.read(buffer, 0, maxOnceReadSize);
+                    if (size > 0) {
+                        discardedCountSize -= size;
+                    } else {
+                        if ((--totalReadErrorCount) <= 0) {
+                            return;
+                        }
+                    }
+                }
+            }
+
+            // Really read the data to the local cache
+            final RandomAccessFile randomAccessFile = mRandomAccessFile;
+            long countOfReads = mCacheInfo.mSize - cacheWritePos;
+            long currentCacheWritePos = cacheWritePos;
+            int totalReadErrorCount = MAX_READ_ERROR_COUNT;
+            while (countOfReads > 0) {
+                int maxOnceReadSize = (int) Math.min(bufferSize, countOfReads);
+                int size = stream.read(buffer, 0, maxOnceReadSize);
+                if (size > 0) {
                     synchronized (mDataLock) {
-                        randomAccessFile.seek(mWritePos.get());
+                        randomAccessFile.seek(currentCacheWritePos);
                         randomAccessFile.write(buffer, 0, size);
-                        long pos = mWritePos.addAndGet(size);
-                        randomAccessFile.writeLong(pos);
-                        needDownloadSize -= size;
+                        currentCacheWritePos = writePos.addAndGet(size);
+                        randomAccessFile.writeLong(currentCacheWritePos);
+                        countOfReads -= size;
                         notifyProgressChanged();
                     }
                 } else {
-                    if ((--errorCount) <= 0) {
+                    if ((--totalReadErrorCount) <= 0) {
                         break;
                     }
                 }
             }
         } catch (IOException ignored) {
         } finally {
-            notifyProgressChanged();
             releaseFetcher();
+            notifyProgressChanged();
         }
     }
 
@@ -161,14 +203,18 @@ public class TempDataPartial extends CacheDataPartial implements StreamFetcher.D
         releaseFetcher();
     }
 
-
     private void retryLoadDataFromProvider() {
         synchronized (mFetcherLock) {
-            if (mWritePos.get() < mCacheInfo.mSize && mFetcher == null) {
-                long downStart = mCacheInfo.mStartPos + mWritePos.get();
-                long downSize = mCacheInfo.mSize - mWritePos.get();
-                mFetcher = mProvider.buildStreamFetcher(mUrl, downStart, downSize);
-                mFetcher.loadData(StreamFetcher.Priority.HIGH, this);
+            final CacheUtil.CacheInfo cacheInfo = mCacheInfo;
+            final long totalSize = cacheInfo.mSize;
+            final long writePos = mWritePos.get();
+
+            if (writePos < totalSize && mFetcher == null) {
+                long downStart = cacheInfo.mStartPos + (cacheInfo.mSupportRandomReading ? writePos : 0);
+                long downSize = totalSize - writePos;
+                StreamFetcher fetcher = mProvider.buildStreamFetcher(mUrl, downStart, downSize);
+                fetcher.loadData(StreamFetcher.Priority.HIGH, this);
+                mFetcher = fetcher;
             }
         }
     }

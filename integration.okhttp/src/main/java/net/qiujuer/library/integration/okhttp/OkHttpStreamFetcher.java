@@ -8,7 +8,6 @@ import net.qiujuer.library.planck.utils.IoUtil;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Objects;
 
 import okhttp3.Call;
 import okhttp3.Request;
@@ -79,7 +78,11 @@ public class OkHttpStreamFetcher implements StreamFetcher, okhttp3.Callback {
     public void onResponse(@NonNull Call call, @NonNull Response response) throws IOException {
         ResponseBody responseBody = mResponseBody = response.body();
         if (response.isSuccessful()) {
-            long contentLength = Objects.requireNonNull(responseBody).contentLength();
+            if (responseBody == null) {
+                mCallback.onDataReady(null);
+                return;
+            }
+            long contentLength = responseBody.contentLength();
             mStream = ContentLengthInputStream.obtain(responseBody.byteStream(), contentLength);
             mCallback.onDataReady(mStream);
         } else {

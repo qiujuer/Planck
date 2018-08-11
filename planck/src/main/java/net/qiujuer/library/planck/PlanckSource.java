@@ -13,6 +13,7 @@ public interface PlanckSource extends DataBehavior {
     int INVALID_VALUES_INIT_NETWORK_ERROR = -10001;
     int INVALID_VALUES_INIT_INTERRUPTED = -10002;
     int INVALID_VALUES_INIT_TIMEOUT = -10003;
+    int INVALID_VALUES_SOURCE_STREAM_INTERRUPT = -10101;
 
     /**
      * Get current source length.
