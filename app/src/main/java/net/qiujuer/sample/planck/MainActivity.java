@@ -47,20 +47,21 @@ public class MainActivity extends AppCompatActivity implements Runnable {
             e.printStackTrace();
         }
 
+        Log.e("TAG", "Length:" + length);
+
         if (length < 0) {
-            Log.e("TAG", "Length:" + length);
             return;
         }
 
-        int bufferSize = 1024 * 64;
+        int bufferSize = 1;
         byte[] buffer = new byte[bufferSize];
 
-        long pos = 0;
+        long pos = 512;
         while (length > 0) {
             int size = 0;
             try {
                 size = planckSource.get(pos, buffer, 0, bufferSize, 10000);
-                Log.e("TAG", "size:" + size + " length:" + length + " pos:" + pos);
+
                 if (size < 0) {
                     return;
                 }
@@ -70,6 +71,8 @@ public class MainActivity extends AppCompatActivity implements Runnable {
             pos += size;
             length -= size;
         }
+
+        Log.e("TAG", "size:" + 0 + " length:" + length + " pos:" + pos);
     }
 
 }
