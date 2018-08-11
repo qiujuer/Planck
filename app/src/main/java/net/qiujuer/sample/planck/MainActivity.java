@@ -13,17 +13,13 @@ import java.io.File;
 import java.util.concurrent.TimeoutException;
 
 public class MainActivity extends AppCompatActivity implements Runnable {
+    PlanckSource mPlanckSource;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        new Thread(this).start();
-    }
-
-    @Override
-    public void run() {
         File cacheRoot = StorageUtil.getIndividualCacheDirectory(this);
         if (!cacheRoot.exists()) {
             //noinspection ResultOfMethodCallIgnored
@@ -32,19 +28,40 @@ public class MainActivity extends AppCompatActivity implements Runnable {
         Planck planck = new Planck.Builder(new OkHttpDataProvider(), cacheRoot)
                 .build();
 
-        PlanckSource planckSource = planck.get("http://mysns1.video.meipai.com/6423448346911900673.mp4");
+        mPlanckSource = planck.get("http://mysns1.video.meipai.com/6423448346911900673.mp4");
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        new Thread(this, "Planck-TEST-Thread").start();
+    }
+
+    @Override
+    public void run() {
+        PlanckSource planckSource = mPlanckSource;
         long length = 0;
         try {
             length = planckSource.length(10000);
         } catch (TimeoutException e) {
             e.printStackTrace();
         }
-        byte[] buffer1 = new byte[1024 * 64];
+
+        if (length < 0) {
+            Log.e("TAG", "Length:" + length);
+            return;
+        }
+
+        int bufferSize = 1024 * 64;
+        byte[] buffer = new byte[bufferSize];
         try {
             long pos = 0;
             while (length > 0) {
-                int size = planckSource.get(pos, buffer1, 0, 64 * 1024, 10000);
-                Log.e("TAG", "Size:" + size + " length:" + length);
+                int size = planckSource.get(pos, buffer, 0, bufferSize, 10000);
+                Log.e("TAG", "size:" + size + " length:" + length + " pos:" + pos);
+                if (size < 0) {
+                    return;
+                }
                 pos += size;
                 length -= size;
             }

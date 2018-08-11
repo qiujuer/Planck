@@ -10,7 +10,10 @@ import java.util.concurrent.TimeoutException;
  * Create at: 2018/8/8
  */
 public interface PlanckSource extends DataBehavior {
-    int INVALID_VALUES_INIT_INTERRUPTED = -1;
+    int INVALID_VALUES_INIT_NETWORK_ERROR = -10001;
+    int INVALID_VALUES_INIT_INTERRUPTED = -10002;
+    int INVALID_VALUES_INIT_TIMEOUT = -10003;
+
     /**
      * Get current source length.
      *

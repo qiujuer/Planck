@@ -16,7 +16,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -67,8 +66,7 @@ public class Planck {
     }
 
     private void dispatchInitializer(Initializer initializer) {
-        Future<?> future = mExecutor.submit(initializer);
-        initializer.setFuture(future);
+        initializer.startWith(mExecutor);
     }
 
     private final Store mStore = new Store() {
@@ -115,6 +113,7 @@ public class Planck {
         void outOfSource(String httpUrl);
     }
 
+    @SuppressWarnings("unused")
     public static final class Builder {
         private File mCacheRoot;
         private DataProvider mDataProvider;

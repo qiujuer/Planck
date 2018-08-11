@@ -1,5 +1,6 @@
 package net.qiujuer.library.planck.internal.contract;
 
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
 /**
@@ -11,32 +12,53 @@ import java.util.concurrent.Future;
  * Create at: 2018/8/11
  */
 public abstract class Initializer implements Runnable {
-    private boolean mDone;
+    private boolean mOnceDone;
+    private boolean mSucceed = true;
     private Future mFuture;
+    private ExecutorService mExecutorService;
 
     protected abstract boolean onInitialize();
 
     @Override
     public final void run() {
+        boolean isSucceed = this.onInitialize();
+
         synchronized (this) {
             mFuture = null;
-            mDone = this.onInitialize();
+            mSucceed = isSucceed;
+            mOnceDone = true;
         }
-    }
-
-    public synchronized boolean isInitialSucceed() {
-        return mDone;
     }
 
     public synchronized final void cancel() {
-        if (!mDone && mFuture != null) {
+        if (mFuture != null) {
             mFuture.cancel(true);
+        }
+        mExecutorService = null;
+    }
+
+    public final void retryOnFailed() {
+        if (mExecutorService == null) {
+            return;
+        }
+        synchronized (this) {
+            if (mOnceDone && !mSucceed) {
+                mOnceDone = false;
+                mSucceed = true;
+                startWith(mExecutorService);
+            }
         }
     }
 
-    public synchronized final void setFuture(Future<?> future) {
-        if (!mDone) {
-            mFuture = future;
+    public final void startWith(ExecutorService executorService) {
+        if (executorService == null) {
+            return;
+        }
+        synchronized (this) {
+            if (!mOnceDone) {
+                mExecutorService = executorService;
+                mFuture = executorService.submit(this);
+            }
         }
     }
 }

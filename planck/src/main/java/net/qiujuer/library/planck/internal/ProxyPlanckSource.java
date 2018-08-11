@@ -1,12 +1,12 @@
 package net.qiujuer.library.planck.internal;
 
+import android.os.SystemClock;
 import android.webkit.URLUtil;
 
 import net.qiujuer.library.planck.Planck;
 import net.qiujuer.library.planck.PlanckSource;
 import net.qiujuer.library.planck.data.DataInfo;
 import net.qiujuer.library.planck.data.DataProvider;
-import net.qiujuer.library.planck.exception.NetworkException;
 import net.qiujuer.library.planck.internal.contract.Initializer;
 import net.qiujuer.library.planck.internal.contract.UsageFinalizer;
 import net.qiujuer.library.planck.internal.section.CacheDataPartial;
@@ -27,8 +27,9 @@ import java.util.concurrent.atomic.AtomicInteger;
  * Create at: 2018/8/11
  */
 public class ProxyPlanckSource implements PlanckSource, UsageFinalizer {
+    private final static int INIT_TIMEOUT_VALUE = 15 * 1000;
     private final AtomicInteger mUsageCount = new AtomicInteger();
-    private final AtomicBoolean mDone = new AtomicBoolean();
+    private final AtomicBoolean mClosed = new AtomicBoolean();
     private final Planck.Store mPlanckStore;
 
     private final Object mSourceLock = new Object();
@@ -43,33 +44,37 @@ public class ProxyPlanckSource implements PlanckSource, UsageFinalizer {
 
     @Override
     public long length(int timeout) throws TimeoutException {
-        checkCanceled();
-        return awaitSourceInitialed() ? mSource.length(timeout) : PlanckSource.INVALID_VALUES_INIT_INTERRUPTED;
+        checkClosed();
+        int initValue = awaitSourceInitialed();
+        return initValue == 0 ? mSource.length(timeout) : initValue;
     }
 
     @Override
     public long load(long position, int timeout) throws IOException, TimeoutException {
-        checkCanceled();
-        return awaitSourceInitialed() ? mSource.load(position, timeout) : PlanckSource.INVALID_VALUES_INIT_INTERRUPTED;
+        checkClosed();
+        int initValue = awaitSourceInitialed();
+        return initValue == 0 ? mSource.load(position, timeout) : initValue;
     }
 
     @Override
     public int get(long position, byte[] buffer, int offset, int size, int timeout) throws IOException, TimeoutException {
-        checkCanceled();
-        return awaitSourceInitialed() ? mSource.get(position, buffer, offset, size, timeout) : PlanckSource.INVALID_VALUES_INIT_INTERRUPTED;
+        checkClosed();
+        int initValue = awaitSourceInitialed();
+        return initValue == 0 ? mSource.get(position, buffer, offset, size, timeout) : initValue;
     }
 
     @Override
     public void close() {
         if (onceFinalize()) {
-            mDone.set(true);
+            mClosed.set(true);
+
+            mInitializer.cancel();
+
             if (mSource != null) {
                 synchronized (mSourceLock) {
-                    if (mSource != null) {
-                        mPlanckStore.outOfSource(mSourceUrl);
-                        mSource.close();
-                        mSource = null;
-                    }
+                    mPlanckStore.outOfSource(mSourceUrl);
+                    mSource.close();
+                    mSource = null;
                 }
             }
         }
@@ -85,25 +90,36 @@ public class ProxyPlanckSource implements PlanckSource, UsageFinalizer {
         return mUsageCount.decrementAndGet() <= 0;
     }
 
-    private void checkCanceled() {
-        if (mDone.get()) {
+    private void checkClosed() {
+        if (mClosed.get()) {
             throw new IllegalStateException("Current source is closed.");
         }
     }
 
-    private boolean awaitSourceInitialed() {
+    private int awaitSourceInitialed() {
         if (mSource == null) {
+            mInitializer.retryOnFailed();
             synchronized (mSourceLock) {
                 if (mSource == null) {
+                    checkClosed();
+
                     try {
-                        mSourceLock.wait();
+                        long endTime = SystemClock.elapsedRealtime() + INIT_TIMEOUT_VALUE;
+
+                        mSourceLock.wait(INIT_TIMEOUT_VALUE);
+
+                        // Init error
+                        if (mSource == null) {
+                            return SystemClock.elapsedRealtime() > endTime ? PlanckSource.INVALID_VALUES_INIT_TIMEOUT :
+                                    PlanckSource.INVALID_VALUES_INIT_NETWORK_ERROR;
+                        }
                     } catch (InterruptedException e) {
-                        return false;
+                        return PlanckSource.INVALID_VALUES_INIT_INTERRUPTED;
                     }
                 }
             }
         }
-        return true;
+        return 0;
     }
 
     private void attachSource(PlanckSource source) {
@@ -127,8 +143,8 @@ public class ProxyPlanckSource implements PlanckSource, UsageFinalizer {
         final boolean acceptRange;
         DataInfo dataInfo = mPlanckStore.dataProvider().loadDataInfo(httpUrl);
         if (dataInfo == null) {
-            // TODO
-            throw new NetworkException("Load data info error", NetworkException.CUSTOM_ERROR_GET_DATA_INFO);
+            attachSource(null);
+            return false;
         } else {
             totalSize = dataInfo.getLength();
             acceptRange = dataInfo.isSupportAcceptRangesOperation();
@@ -179,7 +195,7 @@ public class ProxyPlanckSource implements PlanckSource, UsageFinalizer {
     private Initializer mInitializer = new Initializer() {
         @Override
         protected boolean onInitialize() {
-            if (mDone.get()) {
+            if (mClosed.get()) {
                 return true;
             }
 

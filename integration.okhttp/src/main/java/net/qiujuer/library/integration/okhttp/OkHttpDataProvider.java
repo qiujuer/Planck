@@ -60,7 +60,9 @@ public class OkHttpDataProvider implements DataProvider {
             boolean supportRanges = !TextUtils.isEmpty(response.header("Accept-Ranges", null));
             return new DataInfo(contentLength, supportRanges);
         } catch (IOException e) {
-            e.printStackTrace();
+            if (BuildConfig.DEBUG) {
+                e.printStackTrace();
+            }
         }
         return null;
     }

@@ -76,9 +76,9 @@ public class TempDataPartial extends CacheDataPartial implements StreamFetcher.D
             return mWritePos.get();
         }
 
-        final long finishWaitTime = SystemClock.currentThreadTimeMillis() + timeout;
+        final long finishWaitTime = SystemClock.elapsedRealtime() + timeout;
         while (mWritePos.get() < position) {
-            long currentTime = SystemClock.currentThreadTimeMillis();
+            long currentTime = SystemClock.elapsedRealtime();
             if (currentTime > finishWaitTime) {
                 throw new TimeoutException("Load data timeout, pos:" + position + ", currentPos:" + mWritePos.get());
             }

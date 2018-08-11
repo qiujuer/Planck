@@ -45,7 +45,7 @@ class PartialPlanckSource implements PlanckSource {
     @Override
     public int get(final long position, final byte[] buffer, final int offset, final int size, final int timeout) throws IOException, TimeoutException {
         final long partialSize = mPartialSize;
-        final long endTime = SystemClock.currentThreadTimeMillis() + timeout;
+        final long endTime = SystemClock.elapsedRealtime() + timeout;
 
         int partIndex = (int) (position / partialSize);
         long partStartPos = position - (partIndex * partialSize);
@@ -73,7 +73,7 @@ class PartialPlanckSource implements PlanckSource {
             }
 
             // Check time out
-            final int partTimeOut = (int) (endTime - SystemClock.currentThreadTimeMillis());
+            final int partTimeOut = (int) (endTime - SystemClock.elapsedRealtime());
             if (partTimeOut <= 0) {
                 if (totalLoadSize == 0) {
                     throw new TimeoutException();
