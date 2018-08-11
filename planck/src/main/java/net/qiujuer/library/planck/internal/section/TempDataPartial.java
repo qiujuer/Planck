@@ -28,6 +28,8 @@ public class TempDataPartial extends CacheDataPartial implements StreamFetcher.D
     private final String mUrl;
     private final DataProvider mProvider;
     private final AtomicLong mWritePos = new AtomicLong();
+    private final Object mDataLock = mWritePos;
+    private final Object mFetcherLock = new Object();
     private StreamFetcher mFetcher;
     private CacheUtil.CacheInfo mCacheInfo;
 
@@ -57,12 +59,8 @@ public class TempDataPartial extends CacheDataPartial implements StreamFetcher.D
             mWritePos.set(mRandomAccessFile.readLong());
         }
 
-        if (mWritePos.get() < mCacheInfo.mSize && mFetcher == null) {
-            long downStart = mCacheInfo.mStartPos + mWritePos.get();
-            long downSize = mCacheInfo.mSize - mWritePos.get();
-            mFetcher = mProvider.buildStreamFetcher(mUrl, downStart, downSize);
-            mFetcher.loadData(StreamFetcher.Priority.HIGH, this);
-        }
+        // First Load data
+        retryLoadDataFromProvider();
     }
 
     @Override
@@ -76,6 +74,10 @@ public class TempDataPartial extends CacheDataPartial implements StreamFetcher.D
             return mWritePos.get();
         }
 
+        if (mWritePos.get() < mCacheInfo.mSize) {
+            retryLoadDataFromProvider();
+        }
+
         final long finishWaitTime = SystemClock.elapsedRealtime() + timeout;
         while (mWritePos.get() < position) {
             long currentTime = SystemClock.elapsedRealtime();
@@ -83,9 +85,14 @@ public class TempDataPartial extends CacheDataPartial implements StreamFetcher.D
                 throw new TimeoutException("Load data timeout, pos:" + position + ", currentPos:" + mWritePos.get());
             }
 
-            synchronized (this) {
+            synchronized (mDataLock) {
                 try {
-                    this.wait(finishWaitTime - currentTime);
+                    mDataLock.wait(finishWaitTime - currentTime);
+                    if (mFetcher == null && mWritePos.get() < position) {
+                        // Abnormal awaken
+                        retryLoadDataFromProvider();
+                        break;
+                    }
                 } catch (InterruptedException e) {
                     throw new IOException("Load data timeout InterruptedException, pos:" + position + ", currentPos:" + mWritePos.get());
                 }
@@ -97,8 +104,12 @@ public class TempDataPartial extends CacheDataPartial implements StreamFetcher.D
     @Override
     protected synchronized int doGet(long position, byte[] buffer, int offset, int size, int timeout) throws IOException, TimeoutException {
         long loadPos = position + size;
-        doLoad(loadPos, timeout);
-        return super.doGet(position, buffer, offset, size, timeout);
+        long loadEndPos = doLoad(loadPos, timeout);
+        if (loadEndPos > position) {
+            return super.doGet(position, buffer, offset, size, timeout);
+        } else {
+            return 0;
+        }
     }
 
     @Override
@@ -124,16 +135,13 @@ public class TempDataPartial extends CacheDataPartial implements StreamFetcher.D
                     size = (int) Math.min(size, needDownloadSize);
 
                     final RandomAccessFile randomAccessFile = mRandomAccessFile;
-                    synchronized (this) {
+                    synchronized (mDataLock) {
                         randomAccessFile.seek(mWritePos.get());
                         randomAccessFile.write(buffer, 0, size);
                         long pos = mWritePos.addAndGet(size);
                         randomAccessFile.writeLong(pos);
                         needDownloadSize -= size;
-                        try {
-                            this.notifyAll();
-                        } catch (Exception ignore) {
-                        }
+                        notifyProgressChanged();
                     }
                 } else {
                     if ((--errorCount) <= 0) {
@@ -141,9 +149,9 @@ public class TempDataPartial extends CacheDataPartial implements StreamFetcher.D
                     }
                 }
             }
-        } catch (IOException e) {
-            e.printStackTrace();
+        } catch (IOException ignored) {
         } finally {
+            notifyProgressChanged();
             releaseFetcher();
         }
     }
@@ -153,10 +161,33 @@ public class TempDataPartial extends CacheDataPartial implements StreamFetcher.D
         releaseFetcher();
     }
 
+
+    private void retryLoadDataFromProvider() {
+        synchronized (mFetcherLock) {
+            if (mWritePos.get() < mCacheInfo.mSize && mFetcher == null) {
+                long downStart = mCacheInfo.mStartPos + mWritePos.get();
+                long downSize = mCacheInfo.mSize - mWritePos.get();
+                mFetcher = mProvider.buildStreamFetcher(mUrl, downStart, downSize);
+                mFetcher.loadData(StreamFetcher.Priority.HIGH, this);
+            }
+        }
+    }
+
+    private void notifyProgressChanged() {
+        synchronized (mDataLock) {
+            try {
+                mDataLock.notifyAll();
+            } catch (Exception ignore) {
+            }
+        }
+    }
+
     private void releaseFetcher() {
-        if (mFetcher != null) {
-            mFetcher.cleanup();
-            mFetcher = null;
+        synchronized (mFetcherLock) {
+            if (mFetcher != null) {
+                mFetcher.cleanup();
+                mFetcher = null;
+            }
         }
     }
 }

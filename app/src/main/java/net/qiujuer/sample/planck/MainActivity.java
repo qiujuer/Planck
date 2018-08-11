@@ -54,19 +54,21 @@ public class MainActivity extends AppCompatActivity implements Runnable {
 
         int bufferSize = 1024 * 64;
         byte[] buffer = new byte[bufferSize];
-        try {
-            long pos = 0;
-            while (length > 0) {
-                int size = planckSource.get(pos, buffer, 0, bufferSize, 10000);
+
+        long pos = 0;
+        while (length > 0) {
+            int size = 0;
+            try {
+                size = planckSource.get(pos, buffer, 0, bufferSize, 10000);
                 Log.e("TAG", "size:" + size + " length:" + length + " pos:" + pos);
                 if (size < 0) {
                     return;
                 }
-                pos += size;
-                length -= size;
+            } catch (Exception e) {
+                e.printStackTrace();
             }
-        } catch (Exception e) {
-            e.printStackTrace();
+            pos += size;
+            length -= size;
         }
     }
 

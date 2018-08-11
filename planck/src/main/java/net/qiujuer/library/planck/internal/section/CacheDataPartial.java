@@ -9,6 +9,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.security.InvalidParameterException;
 import java.util.concurrent.TimeoutException;
 
 /**
@@ -100,12 +101,12 @@ public class CacheDataPartial implements DataPartial {
 
     protected synchronized int doGet(long position, byte[] buffer, int offset, int size, int timeout) throws IOException, TimeoutException {
         if (position < 0) {
-            throw new IOException("doGet() called with1: position = [" + position + "], offset = [" + offset + "], size = [" + size + "], timeout = [" + timeout + "]");
+            throw new InvalidParameterException("Position invalid:" + position);
         }
         mRandomAccessFile.seek(position);
         int count = mRandomAccessFile.read(buffer, offset, size);
         if (count < 0) {
-            throw new IOException("doGet() called with2: position = [" + position + "], offset = [" + offset + "], size = [" + size + "], timeout = [" + timeout + "]");
+            throw new IOException("RandomAccessFile read failed: position = [" + position + "], offset = [" + offset + "], size = [" + size + "], timeout = [" + timeout + "], count = [" + count + "]");
         }
         return count;
     }
