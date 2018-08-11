@@ -1,5 +1,7 @@
 package net.qiujuer.library.planck.internal;
 
+import android.os.SystemClock;
+
 import net.qiujuer.library.planck.PlanckSource;
 import net.qiujuer.library.planck.internal.section.DataPartial;
 
@@ -33,22 +35,84 @@ class PartialPlanckSource implements PlanckSource {
 
         int partIndex = (int) (position / partialSize);
         long partPos = position - (partIndex * partialSize);
+
         DataPartial partial = mDataPartials[partIndex];
         long partReadablePos = partial.load(partPos, timeout);
 
-        return partialSize * (partIndex + 1) + partReadablePos;
+        return partReadablePos < 0 ? partReadablePos : partialSize * partIndex + partReadablePos;
     }
 
-
     @Override
-    public int get(long position, byte[] buffer, int offset, int size, int timeout) throws IOException, TimeoutException {
+    public int get(final long position, final byte[] buffer, final int offset, final int size, final int timeout) throws IOException, TimeoutException {
         final long partialSize = mPartialSize;
+        final long endTime = SystemClock.currentThreadTimeMillis() + timeout;
 
         int partIndex = (int) (position / partialSize);
-        long partPos = position - (partIndex * partialSize);
-        DataPartial partial = mDataPartials[partIndex];
+        long partStartPos = position - (partIndex * partialSize);
 
-        return partial.get(partPos, buffer, offset, size, timeout);
+        int needReadSize = size;
+        int partBufferOffset = offset;
+        int totalLoadSize = 0;
+
+        while (true) {
+            DataPartial part = mDataPartials[partIndex];
+
+            // Part size
+            long partSize = part.length();
+
+            // Part max consumed size of offset partStartPos
+            long parMaxConsumedSize = partSize - partStartPos;
+
+            int partBufferSize;
+            if (needReadSize > parMaxConsumedSize) {
+                partBufferSize = (int) parMaxConsumedSize;
+                needReadSize -= (int) (parMaxConsumedSize);
+            } else {
+                partBufferSize = needReadSize;
+                needReadSize = 0;
+            }
+
+            // Check time out
+            final int partTimeOut = (int) (endTime - SystemClock.currentThreadTimeMillis());
+            if (partTimeOut <= 0) {
+                if (totalLoadSize == 0) {
+                    throw new TimeoutException();
+                }
+                // Cancel next part load
+                break;
+            }
+
+            // Load data to buffer
+            int partLoadSize = 0;
+            try {
+                partLoadSize = part.get(partStartPos, buffer, partBufferOffset, partBufferSize, partTimeOut);
+            } catch (Exception e) {
+                // catch all exception
+                if (totalLoadSize == 0) {
+                    throw e;
+                }
+            }
+
+            // Current part load failed
+            if (partLoadSize < 0) {
+                if (totalLoadSize == 0) {
+                    totalLoadSize = partLoadSize;
+                }
+                break;
+            }
+
+            // Load succeed
+            totalLoadSize += partLoadSize;
+
+            // If part load full, but need more
+            if (needReadSize > 0 && partLoadSize == partBufferSize && (++partIndex) < mDataPartials.length) {
+                partStartPos = 0;
+                partBufferOffset += partStartPos;
+            } else {
+                break;
+            }
+        }
+        return totalLoadSize;
     }
 
     @Override
