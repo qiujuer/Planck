@@ -4,7 +4,7 @@ import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 
-import net.qiujuer.library.integration.okhttp.OkHttpDataProvider;
+import net.qiujuer.library.planck.integration.okhttp.OkHttpDataProvider;
 import net.qiujuer.library.planck.Planck;
 import net.qiujuer.library.planck.PlanckSource;
 import net.qiujuer.library.planck.utils.StorageUtil;

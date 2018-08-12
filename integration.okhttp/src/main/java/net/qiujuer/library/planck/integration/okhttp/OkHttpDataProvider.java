@@ -1,4 +1,4 @@
-package net.qiujuer.library.integration.okhttp;
+package net.qiujuer.library.planck.integration.okhttp;
 
 import android.text.TextUtils;
 

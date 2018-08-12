@@ -1,8 +1,8 @@
-package net.qiujuer.library.integration.okhttp;
+package net.qiujuer.library.planck.integration.okhttp;
 
 import org.junit.Test;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
 /**
  * Example local unit test, which will execute on the development machine (host).
