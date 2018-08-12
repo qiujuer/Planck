@@ -1,27 +1,38 @@
-// Top-level build file where you can add configuration options common to all sub-projects/modules.
-
 buildscript {
-    
+
     repositories {
         google()
         jcenter()
     }
     dependencies {
         classpath 'com.android.tools.build:gradle:3.1.4'
-        
-
-        // NOTE: Do not place your application dependencies here; they belong
-        // in the individual module build.gradle files
     }
 }
 
+plugins {
+    id "com.jfrog.bintray" version "1.8.4"
+    id "com.github.dcendents.android-maven" version "2.1"
+}
+
 allprojects {
+    version = VERSION_NAME
+    group = POM_GROUP_ID
+
     repositories {
         google()
         jcenter()
     }
 }
 
-task clean(type: Delete) {
-    delete rootProject.buildDir
+static int getVersionCode() {
+    def date = new Date()
+    def formattedDate = date.format('yyMMddHHmm')
+    return formattedDate as int
 }
+
+ext {
+    versionCode = getVersionCode()
+    versionName = VERSION_NAME
+}
+
+apply plugin: 'android-reporting'
