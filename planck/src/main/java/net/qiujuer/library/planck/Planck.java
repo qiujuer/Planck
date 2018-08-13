@@ -1,7 +1,6 @@
 package net.qiujuer.library.planck;
 
 import android.support.annotation.NonNull;
-import android.util.Log;
 
 import net.qiujuer.library.planck.data.DataProvider;
 import net.qiujuer.library.planck.file.FileNameGenerator;
@@ -9,6 +8,7 @@ import net.qiujuer.library.planck.file.Md5FileNameGenerator;
 import net.qiujuer.library.planck.internal.ProxyPlanckSource;
 import net.qiujuer.library.planck.internal.contract.Initializer;
 import net.qiujuer.library.planck.internal.contract.UsageFinalizer;
+import net.qiujuer.library.planck.utils.Logger;
 
 import java.io.File;
 import java.security.InvalidParameterException;
@@ -25,8 +25,8 @@ import java.util.concurrent.atomic.AtomicInteger;
  * Create at: 2018/8/8
  */
 public class Planck {
-    private final static String TAG = "Planck";
-    private final static long DEFAULT_PARTIAL_SIZE = 1048575;
+    private final static String TAG = Planck.class.getSimpleName();
+    private final static long DEFAULT_PARTIAL_SIZE = 1024 * 1024;
     private final long mMaxPartialSize = DEFAULT_PARTIAL_SIZE;
     private final File mCacheRoot;
     private final DataProvider mDataProvider;
@@ -60,7 +60,7 @@ public class Planck {
             assert source != null;
             int count = ((UsageFinalizer) source).onceUsage();
             if (BuildConfig.DEBUG) {
-                Log.i(TAG, "Source usage count:" + count);
+                Logger.d(TAG, "Source usage count:" + count);
             }
         }
     }

@@ -31,15 +31,7 @@ public class MainActivity extends AppCompatActivity implements Runnable {
                 .build();
 
         mPlanckSource = planck.get("http://mysns1.video.meipai.com/6423448346911900673.mp4");
-    }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
         new Thread(this, "Planck-TEST-Thread1").start();
-        new Thread(this, "Planck-TEST-Thread2").start();
-        new Thread(this, "Planck-TEST-Thread3").start();
-        new Thread(this, "Planck-TEST-Thread3").start();
     }
 
     @Override
@@ -65,7 +57,7 @@ public class MainActivity extends AppCompatActivity implements Runnable {
             return;
         }
 
-        int bufferSize = 100;
+        int bufferSize = 512;
         byte[] buffer = new byte[bufferSize];
 
         long pos = 0;

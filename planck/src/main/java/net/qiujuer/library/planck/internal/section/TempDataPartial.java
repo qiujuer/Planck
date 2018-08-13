@@ -3,7 +3,6 @@ package net.qiujuer.library.planck.internal.section;
 import android.os.SystemClock;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
-import android.util.Log;
 
 import net.qiujuer.library.planck.PlanckSource;
 import net.qiujuer.library.planck.data.DataProvider;
@@ -11,6 +10,7 @@ import net.qiujuer.library.planck.data.StreamFetcher;
 import net.qiujuer.library.planck.exception.FileException;
 import net.qiujuer.library.planck.exception.StreamInterruptException;
 import net.qiujuer.library.planck.utils.CacheUtil;
+import net.qiujuer.library.planck.utils.Logger;
 
 import java.io.File;
 import java.io.IOException;
@@ -27,6 +27,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * Create at: 2018/8/9
  */
 public class TempDataPartial extends CacheDataPartial implements StreamFetcher.DataCallback {
+    private static final String TAG = TempDataPartial.class.getSimpleName();
     private static final int MAX_READ_ERROR_COUNT = 3;
     private static final int TEMP_DATA_FOOTER_LEN = 8;
     private static final int TEMP_STREAM_BUFFER_SIZE = 512;
@@ -65,7 +66,7 @@ public class TempDataPartial extends CacheDataPartial implements StreamFetcher.D
                 mRandomAccessFile.seek(fileDataLength - TEMP_DATA_FOOTER_LEN);
                 long pos = mRandomAccessFile.readLong();
                 if (pos < 0 || pos > maxFileLen) {
-                    Log.e("TempDataPartial", "Load Parameters pos error:" + pos);
+                    Logger.w(TAG, "Load Parameters pos error:" + pos);
                     pos = Math.max(0, Math.min(pos, maxFileLen));
                 }
                 mWritePos.set(pos);

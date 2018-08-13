@@ -35,4 +35,11 @@ ext {
     versionName = VERSION_NAME
 }
 
+task publishToMaven {
+    dependsOn getTasksByName('clean', true)
+    dependsOn getTasksByName('build', true)
+    dependsOn 'planck:bintrayUpload'
+    dependsOn 'integration.okhttp:bintrayUpload'
+}
+
 apply plugin: 'android-reporting'

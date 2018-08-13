@@ -44,8 +44,11 @@ class PartialPlanckSource implements PlanckSource {
 
     @Override
     public int get(final long position, final byte[] buffer, final int offset, final int size, final int timeout) throws IOException, TimeoutException {
-        final long partialSize = mPartialSize;
         final long endTime = SystemClock.elapsedRealtime() + timeout;
+
+        final long partialSize = mPartialSize;
+        final DataPartial[] allChild = mDataPartials;
+        final int childSize = allChild.length;
 
         int partIndex = (int) (position / partialSize);
         long partStartPos = position - (partIndex * partialSize);
@@ -55,7 +58,7 @@ class PartialPlanckSource implements PlanckSource {
         int totalLoadSize = 0;
 
         while (true) {
-            DataPartial part = mDataPartials[partIndex];
+            DataPartial part = allChild[partIndex];
 
             // Part size
             long partSize = part.length();
@@ -105,9 +108,9 @@ class PartialPlanckSource implements PlanckSource {
             totalLoadSize += partLoadSize;
 
             // If part load full, but need more
-            if (needReadSize > 0 && partLoadSize == partBufferSize && (++partIndex) < mDataPartials.length) {
+            if (needReadSize > 0 && partLoadSize == partBufferSize && (++partIndex) < childSize) {
+                partBufferOffset += partStartPos + 1;
                 partStartPos = 0;
-                partBufferOffset += partStartPos;
             } else {
                 break;
             }
