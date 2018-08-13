@@ -3,6 +3,7 @@ package net.qiujuer.library.planck.internal.section;
 import android.os.SystemClock;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
+import android.util.Log;
 
 import net.qiujuer.library.planck.PlanckSource;
 import net.qiujuer.library.planck.data.DataProvider;
@@ -19,7 +20,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * 缓存文件包括尾部8字节描述当前下载情况
+ * Cache file include Footer 8 bytes
  *
  * @author qiujuer Email: qiujuer@live.cn
  * @version 1.0.0
@@ -31,8 +32,7 @@ public class TempDataPartial extends CacheDataPartial implements StreamFetcher.D
     private static final int TEMP_STREAM_BUFFER_SIZE = 512;
     private final String mUrl;
     private final DataProvider mProvider;
-    private final AtomicLong mWritePos = new AtomicLong();
-    private final Object mDataLock = mWritePos;
+    private final AtomicLong mWritePos = new AtomicLong(0);
     private final Object mFetcherLock = new Object();
     private final CacheUtil.CacheInfo mCacheInfo;
 
@@ -60,8 +60,16 @@ public class TempDataPartial extends CacheDataPartial implements StreamFetcher.D
         super.doInit();
 
         if (fileDataLength > TEMP_DATA_FOOTER_LEN) {
-            mRandomAccessFile.seek(fileDataLength - TEMP_DATA_FOOTER_LEN);
-            mWritePos.set(mRandomAccessFile.readLong());
+            long maxFileLen = mCacheInfo.mSize;
+            synchronized (mDataLock) {
+                mRandomAccessFile.seek(fileDataLength - TEMP_DATA_FOOTER_LEN);
+                long pos = mRandomAccessFile.readLong();
+                if (pos < 0 || pos > maxFileLen) {
+                    Log.e("TempDataPartial", "Load Parameters pos error:" + pos);
+                    pos = Math.max(0, Math.min(pos, maxFileLen));
+                }
+                mWritePos.set(pos);
+            }
         }
 
         // First Load data
@@ -116,7 +124,7 @@ public class TempDataPartial extends CacheDataPartial implements StreamFetcher.D
     }
 
     @Override
-    protected synchronized int doGet(long position, byte[] buffer, int offset, int size, int timeout) throws IOException, TimeoutException {
+    protected int doGet(long position, byte[] buffer, int offset, int size, int timeout) throws IOException, TimeoutException {
         long loadPos = position + size;
 
         try {
@@ -171,20 +179,18 @@ public class TempDataPartial extends CacheDataPartial implements StreamFetcher.D
             // Really read the data to the local cache
             final RandomAccessFile randomAccessFile = mRandomAccessFile;
             long countOfReads = mCacheInfo.mSize - cacheWritePos;
-            long currentCacheWritePos = cacheWritePos;
             int totalReadErrorCount = MAX_READ_ERROR_COUNT;
             while (countOfReads > 0) {
                 int maxOnceReadSize = (int) Math.min(bufferSize, countOfReads);
                 int size = stream.read(buffer, 0, maxOnceReadSize);
                 if (size > 0) {
                     synchronized (mDataLock) {
-                        randomAccessFile.seek(currentCacheWritePos);
+                        randomAccessFile.seek(writePos.getAndAdd(size));
                         randomAccessFile.write(buffer, 0, size);
-                        currentCacheWritePos = writePos.addAndGet(size);
-                        randomAccessFile.writeLong(currentCacheWritePos);
-                        countOfReads -= size;
+                        randomAccessFile.writeLong(writePos.get());
                         notifyProgressChanged();
                     }
+                    countOfReads -= size;
                 } else {
                     if ((--totalReadErrorCount) <= 0) {
                         break;

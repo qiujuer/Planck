@@ -61,12 +61,12 @@ class PartialPlanckSource implements PlanckSource {
             long partSize = part.length();
 
             // Part max consumed size of offset partStartPos
-            long parMaxConsumedSize = partSize - partStartPos;
+            long partMaxConsumedSize = partSize - partStartPos;
 
             int partBufferSize;
-            if (needReadSize > parMaxConsumedSize) {
-                partBufferSize = (int) parMaxConsumedSize;
-                needReadSize -= (int) (parMaxConsumedSize);
+            if (needReadSize > partMaxConsumedSize) {
+                partBufferSize = (int) partMaxConsumedSize;
+                needReadSize -= (int) (partMaxConsumedSize);
             } else {
                 partBufferSize = needReadSize;
                 needReadSize = 0;

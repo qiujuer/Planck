@@ -23,10 +23,12 @@ public class CacheDataPartial implements DataPartial {
     static final String DEFAULT_READ_FILE_MODE = "r";
     static final String DEFAULT_WRITE_FILE_MODE = "rw";
 
+    final File mFile;
+    final Object mDataLock = new Object();
+    RandomAccessFile mRandomAccessFile;
+
     private final long mFileLength;
     private final String mFileModel;
-    final File mFile;
-    RandomAccessFile mRandomAccessFile;
     private boolean mInit;
 
     public CacheDataPartial(@NonNull File file) {
@@ -47,8 +49,10 @@ public class CacheDataPartial implements DataPartial {
                 mInit = true;
             }
         } else {
-            if (mRandomAccessFile == null) {
-                throw FileException.throwIOException(mFile, FileException.FILE_NOT_FIND);
+            synchronized (mDataLock) {
+                if (mRandomAccessFile == null) {
+                    throw FileException.throwIOException(mFile, FileException.FILE_NOT_FIND);
+                }
             }
         }
     }
@@ -89,11 +93,13 @@ public class CacheDataPartial implements DataPartial {
         doClose();
     }
 
-    protected synchronized void doInit() throws IOException {
-        try {
-            mRandomAccessFile = new RandomAccessFile(mFile, mFileModel);
-        } catch (FileNotFoundException e) {
-            throw FileException.throwIOException(mFile, FileException.FILE_NOT_FIND);
+    protected void doInit() throws IOException {
+        synchronized (mDataLock) {
+            try {
+                mRandomAccessFile = new RandomAccessFile(mFile, mFileModel);
+            } catch (FileNotFoundException e) {
+                throw FileException.throwIOException(mFile, FileException.FILE_NOT_FIND);
+            }
         }
     }
 
@@ -105,12 +111,15 @@ public class CacheDataPartial implements DataPartial {
         return mFileLength - 1;
     }
 
-    protected synchronized int doGet(long position, byte[] buffer, int offset, int size, int timeout) throws IOException, TimeoutException {
+    protected int doGet(long position, byte[] buffer, int offset, int size, int timeout) throws IOException, TimeoutException {
         if (position < 0) {
             throw new InvalidParameterException("Position invalid:" + position);
         }
-        mRandomAccessFile.seek(position);
-        int count = mRandomAccessFile.read(buffer, offset, size);
+        int count;
+        synchronized (mDataLock) {
+            mRandomAccessFile.seek(position);
+            count = mRandomAccessFile.read(buffer, offset, size);
+        }
         if (count < 0) {
             throw new IOException("RandomAccessFile read failed: position = [" + position + "], offset = [" + offset + "], size = [" + size + "], timeout = [" + timeout + "], count = [" + count + "]");
         }
@@ -118,8 +127,10 @@ public class CacheDataPartial implements DataPartial {
     }
 
     protected synchronized void doClose() {
-        IoUtil.close(mRandomAccessFile);
-        mRandomAccessFile = null;
+        synchronized (mDataLock) {
+            IoUtil.close(mRandomAccessFile);
+            mRandomAccessFile = null;
+        }
         mInit = false;
     }
 }

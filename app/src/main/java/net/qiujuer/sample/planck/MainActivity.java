@@ -4,12 +4,14 @@ import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 
-import net.qiujuer.library.planck.integration.okhttp.OkHttpDataProvider;
 import net.qiujuer.library.planck.Planck;
 import net.qiujuer.library.planck.PlanckSource;
+import net.qiujuer.library.planck.integration.okhttp.OkHttpDataProvider;
 import net.qiujuer.library.planck.utils.StorageUtil;
 
 import java.io.File;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.concurrent.TimeoutException;
 
 public class MainActivity extends AppCompatActivity implements Runnable {
@@ -34,7 +36,10 @@ public class MainActivity extends AppCompatActivity implements Runnable {
     @Override
     protected void onResume() {
         super.onResume();
-        new Thread(this, "Planck-TEST-Thread").start();
+        new Thread(this, "Planck-TEST-Thread1").start();
+        new Thread(this, "Planck-TEST-Thread2").start();
+        new Thread(this, "Planck-TEST-Thread3").start();
+        new Thread(this, "Planck-TEST-Thread3").start();
     }
 
     @Override
@@ -53,15 +58,21 @@ public class MainActivity extends AppCompatActivity implements Runnable {
             return;
         }
 
-        int bufferSize = 1;
+        MessageDigest digest;
+        try {
+            digest = MessageDigest.getInstance("MD5");
+        } catch (NoSuchAlgorithmException ignored) {
+            return;
+        }
+
+        int bufferSize = 100;
         byte[] buffer = new byte[bufferSize];
 
-        long pos = 512;
+        long pos = 0;
         while (length > 0) {
             int size = 0;
             try {
                 size = planckSource.get(pos, buffer, 0, bufferSize, 10000);
-
                 if (size < 0) {
                     return;
                 }
@@ -70,9 +81,14 @@ public class MainActivity extends AppCompatActivity implements Runnable {
             }
             pos += size;
             length -= size;
+            digest.update(buffer, 0, size);
         }
 
-        Log.e("TAG", "size:" + 0 + " length:" + length + " pos:" + pos);
+        if (length == 0) {
+            String hexString = HashUtils.convertToHexString(digest.digest());
+            Log.e("TAG", "Hash:" + hexString + " " + ("89313db3df7c08af0cf68680285e79f2".equalsIgnoreCase(hexString)));
+        } else {
+            Log.e("TAG", "size:" + 0 + " length:" + length + " pos:" + pos);
+        }
     }
-
 }

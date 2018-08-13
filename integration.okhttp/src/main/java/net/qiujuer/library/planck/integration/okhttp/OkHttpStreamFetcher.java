@@ -1,6 +1,7 @@
 package net.qiujuer.library.planck.integration.okhttp;
 
 import android.support.annotation.NonNull;
+import android.util.Log;
 
 import net.qiujuer.library.planck.data.StreamFetcher;
 import net.qiujuer.library.planck.exception.NetworkException;
@@ -42,7 +43,8 @@ public class OkHttpStreamFetcher implements StreamFetcher, okhttp3.Callback {
     public void loadData(@NonNull Priority priority, @NonNull DataCallback callback) {
         Request.Builder requestBuilder = new Request.Builder().url(mUrl);
         if (mPosition != StreamFetcher.INVALID_INTEGER && mSize != StreamFetcher.INVALID_INTEGER) {
-            final long endIndex = mPosition + mSize;
+            final long endIndex = mPosition + mSize - 1;
+            Log.e("TAG", "loadData() called with: mPosition = [" + mPosition + "], mSize = [" + mSize + "], endIndex = [" + endIndex + "]");
             requestBuilder.addHeader("RANGE", "bytes=" + mPosition + "-" + endIndex);
         }
         Request request = requestBuilder.build();

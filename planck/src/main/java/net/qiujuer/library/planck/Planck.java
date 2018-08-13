@@ -26,7 +26,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public class Planck {
     private final static String TAG = "Planck";
-    private final static long DEFAULT_PARTIAL_SIZE = 1024 * 1024;
+    private final static long DEFAULT_PARTIAL_SIZE = 1048575;
     private final long mMaxPartialSize = DEFAULT_PARTIAL_SIZE;
     private final File mCacheRoot;
     private final DataProvider mDataProvider;
@@ -148,7 +148,7 @@ public class Planck {
 
     private static class PlanckThreadFactory implements ThreadFactory {
         private final AtomicInteger threadNumber = new AtomicInteger(1);
-        private final String namePrefix = "Planck-ThreadPool-";
+        private final String namePrefix = "Planck-WorkPool-";
 
         public Thread newThread(@NonNull Runnable r) {
             SecurityManager s = System.getSecurityManager();
