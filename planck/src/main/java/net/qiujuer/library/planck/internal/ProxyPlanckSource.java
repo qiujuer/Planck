@@ -22,14 +22,16 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
+ * In this we check cache state, select a good loading strategy
+ *
  * @author qiujuer Email: qiujuer@live.cn
  * @version 1.0.0
  * Create at: 2018/8/11
  */
 public class ProxyPlanckSource implements PlanckSource, UsageFinalizer {
     private final static int INIT_TIMEOUT_VALUE = 15 * 1000;
-    private final AtomicInteger mUsageCount = new AtomicInteger();
-    private final AtomicBoolean mClosed = new AtomicBoolean();
+    private final AtomicInteger mUsageCount = new AtomicInteger(0);
+    private final AtomicBoolean mClosed = new AtomicBoolean(false);
     private final Planck.Store mPlanckStore;
 
     private final Object mSourceLock = new Object();
@@ -67,12 +69,10 @@ public class ProxyPlanckSource implements PlanckSource, UsageFinalizer {
     public void close() {
         if (onceFinalize()) {
             mClosed.set(true);
-
             mInitializer.cancel();
-
-            if (mSource != null) {
-                synchronized (mSourceLock) {
-                    mPlanckStore.outOfSource(mSourceUrl);
+            mPlanckStore.outOfSource(mSourceUrl);
+            synchronized (mSourceLock) {
+                if (mSource != null) {
                     mSource.close();
                     mSource = null;
                 }
