@@ -4,6 +4,7 @@ import android.os.SystemClock;
 
 import net.qiujuer.library.planck.PlanckSource;
 import net.qiujuer.library.planck.internal.section.DataPartial;
+import net.qiujuer.library.planck.utils.Logger;
 
 import java.io.IOException;
 import java.util.concurrent.TimeoutException;
@@ -14,6 +15,7 @@ import java.util.concurrent.TimeoutException;
  * Create at: 2018/8/9
  */
 class PartialPlanckSource implements PlanckSource {
+    private static final String TAG = PartialPlanckSource.class.getSimpleName();
     private DataPartial[] mDataPartials;
     private final long mTotalSize;
     private final long mPartialSize;
@@ -121,7 +123,11 @@ class PartialPlanckSource implements PlanckSource {
     @Override
     public void close() {
         for (DataPartial dataPartial : mDataPartials) {
-            dataPartial.close();
+            try {
+                dataPartial.close();
+            } catch (Exception e) {
+                Logger.e(TAG, e.getMessage());
+            }
         }
     }
 }
