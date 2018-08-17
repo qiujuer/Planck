@@ -149,6 +149,7 @@ public class TempDataPartial extends CacheDataPartial implements StreamFetcher.D
     @Override
     public void onDataReady(@Nullable InputStream stream) {
         if (stream == null) {
+            releaseFetcher();
             return;
         }
 
@@ -158,8 +159,9 @@ public class TempDataPartial extends CacheDataPartial implements StreamFetcher.D
         try {
             // Current cache position
             final long cacheWritePos = writePos.get();
+            final CacheUtil.CacheInfo cacheInfo = mCacheInfo;
 
-            if (!mCacheInfo.mSupportRandomReading && cacheWritePos > 0) {
+            if (!cacheInfo.mSupportRandomReading && cacheWritePos > 0) {
                 // Un SupportRandomReading
                 // Read the data and discard it
                 int totalReadErrorCount = MAX_READ_ERROR_COUNT;
@@ -179,7 +181,7 @@ public class TempDataPartial extends CacheDataPartial implements StreamFetcher.D
 
             // Really read the data to the local cache
             final RandomAccessFile randomAccessFile = mRandomAccessFile;
-            long countOfReads = mCacheInfo.mSize - cacheWritePos;
+            long countOfReads = cacheInfo.mSize - cacheWritePos;
             int totalReadErrorCount = MAX_READ_ERROR_COUNT;
             while (countOfReads > 0) {
                 int maxOnceReadSize = (int) Math.min(bufferSize, countOfReads);
@@ -219,9 +221,8 @@ public class TempDataPartial extends CacheDataPartial implements StreamFetcher.D
             if (writePos < totalSize && mFetcher == null) {
                 long downStart = cacheInfo.mStartPos + (cacheInfo.mSupportRandomReading ? writePos : 0);
                 long downSize = totalSize - writePos;
-                StreamFetcher fetcher = mProvider.buildStreamFetcher(mUrl, downStart, downSize);
+                StreamFetcher fetcher = mFetcher = mProvider.buildStreamFetcher(mUrl, downStart, downSize);
                 fetcher.loadData(StreamFetcher.Priority.HIGH, this);
-                mFetcher = fetcher;
             }
         }
     }

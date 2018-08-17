@@ -64,7 +64,13 @@ public class CacheDataPartial implements DataPartial {
 
     @Override
     public final long load(long position, int timeout) throws IOException, TimeoutException {
+        final long len = length();
+        if (position >= len) {
+            throw new IOException("Load parameter anomaly, pos:" + position);
+        }
+
         init();
+
         try {
             return doLoad(position, timeout);
         } catch (StreamInterruptException ignored) {
@@ -75,7 +81,7 @@ public class CacheDataPartial implements DataPartial {
     @Override
     public final int get(long position, byte[] buffer, int offset, int size, int timeout) throws IOException, TimeoutException {
         final long len = length();
-        if (position > len || size <= 0) {
+        if (position >= len || size <= 0) {
             throw new IOException("Read parameter anomaly, pos:" + position + ", size:" + size + ", offset:" + offset);
         }
 

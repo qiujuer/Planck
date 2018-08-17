@@ -8,6 +8,7 @@ import net.qiujuer.library.planck.utils.IoUtil;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.concurrent.atomic.AtomicReference;
 
 import okhttp3.Call;
 import okhttp3.Request;
@@ -27,7 +28,7 @@ public class OkHttpStreamFetcher implements StreamFetcher, okhttp3.Callback {
 
     private InputStream mStream;
     private ResponseBody mResponseBody;
-    private DataCallback mCallback;
+    private final AtomicReference<DataCallback> mAtomicCallback = new AtomicReference<>();
 
     private volatile Call mCall;
 
@@ -46,19 +47,20 @@ public class OkHttpStreamFetcher implements StreamFetcher, okhttp3.Callback {
             requestBuilder.addHeader("RANGE", "bytes=" + mPosition + "-" + endIndex);
         }
         Request request = requestBuilder.build();
-        this.mCallback = callback;
 
+        mAtomicCallback.set(callback);
         mCall = mClient.newCall(request);
         mCall.enqueue(this);
     }
 
     @Override
     public void cleanup() {
+        cancel();
         IoUtil.close(mStream);
         IoUtil.close(mResponseBody);
         mStream = null;
         mResponseBody = null;
-        mCallback = null;
+        mAtomicCallback.set(null);
     }
 
     @Override
@@ -71,22 +73,30 @@ public class OkHttpStreamFetcher implements StreamFetcher, okhttp3.Callback {
 
     @Override
     public void onFailure(@NonNull Call call, @NonNull IOException e) {
-        mCallback.onLoadFailed(e);
+        DataCallback callback = mAtomicCallback.get();
+        if (callback != null) {
+            callback.onLoadFailed(e);
+        }
     }
 
     @Override
     public void onResponse(@NonNull Call call, @NonNull Response response) throws IOException {
+        DataCallback callback = mAtomicCallback.get();
+        if (callback == null) {
+            return;
+        }
+
         ResponseBody responseBody = mResponseBody = response.body();
         if (response.isSuccessful()) {
             if (responseBody == null) {
-                mCallback.onDataReady(null);
+                callback.onDataReady(null);
                 return;
             }
             long contentLength = responseBody.contentLength();
-            mStream = ContentLengthInputStream.obtain(responseBody.byteStream(), contentLength);
-            mCallback.onDataReady(mStream);
+            InputStream inputStream = mStream = ContentLengthInputStream.obtain(responseBody.byteStream(), contentLength);
+            callback.onDataReady(inputStream);
         } else {
-            mCallback.onLoadFailed(new NetworkException(response.message(), response.code()));
+            callback.onLoadFailed(new NetworkException(response.message(), response.code()));
         }
     }
 }
