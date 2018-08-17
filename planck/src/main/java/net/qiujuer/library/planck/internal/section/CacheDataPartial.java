@@ -1,5 +1,6 @@
 package net.qiujuer.library.planck.internal.section;
 
+import android.os.SystemClock;
 import android.support.annotation.NonNull;
 
 import net.qiujuer.library.planck.PlanckSource;
@@ -41,10 +42,10 @@ public class CacheDataPartial implements DataPartial {
         mFileLength = file.exists() ? file.length() : 0;
     }
 
-    private synchronized void init() throws IOException {
+    private synchronized void initStream() throws IOException {
         if (!mInit) {
             try {
-                doInit();
+                doInitStream();
             } finally {
                 mInit = true;
             }
@@ -58,18 +59,24 @@ public class CacheDataPartial implements DataPartial {
     }
 
     @Override
-    public final long length() {
-        return getPartialLength();
+    public final long length(int timeout) throws IOException, TimeoutException {
+        return getPartialLength(timeout);
     }
 
     @Override
     public final long load(long position, int timeout) throws IOException, TimeoutException {
-        final long len = length();
+        final long finishTime = SystemClock.elapsedRealtime() + timeout;
+        final long len = length(timeout);
         if (position >= len) {
             throw new IOException("Load parameter anomaly, pos:" + position);
         }
 
-        init();
+        timeout = (int) (finishTime - SystemClock.elapsedRealtime());
+        if (timeout <= 0) {
+            throw new TimeoutException("Load data timeout.");
+        }
+
+        initStream();
 
         try {
             return doLoad(position, timeout);
@@ -80,16 +87,22 @@ public class CacheDataPartial implements DataPartial {
 
     @Override
     public final int get(long position, byte[] buffer, int offset, int size, int timeout) throws IOException, TimeoutException {
-        final long len = length();
+        final long finishTime = SystemClock.elapsedRealtime() + timeout;
+        final long len = length(timeout);
         if (position >= len || size <= 0) {
             throw new IOException("Read parameter anomaly, pos:" + position + ", size:" + size + ", offset:" + offset);
         }
 
+        timeout = (int) (finishTime - SystemClock.elapsedRealtime());
+        if (timeout <= 0) {
+            throw new TimeoutException("Read data timeout.");
+        }
+
+        initStream();
+
         if ((position + size) > len) {
             size = (int) (len - position);
         }
-
-        init();
 
         return doGet(position, buffer, offset, size, timeout);
     }
@@ -99,7 +112,7 @@ public class CacheDataPartial implements DataPartial {
         doClose();
     }
 
-    protected void doInit() throws IOException {
+    protected void doInitStream() throws IOException {
         synchronized (mDataLock) {
             try {
                 mRandomAccessFile = new RandomAccessFile(mFile, mFileModel);
@@ -109,7 +122,7 @@ public class CacheDataPartial implements DataPartial {
         }
     }
 
-    protected long getPartialLength() {
+    protected long getPartialLength(int timeout) throws IOException, TimeoutException {
         return mFileLength;
     }
 

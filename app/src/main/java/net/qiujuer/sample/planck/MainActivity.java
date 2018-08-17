@@ -10,6 +10,7 @@ import net.qiujuer.library.planck.integration.okhttp.OkHttpDataProvider;
 import net.qiujuer.library.planck.utils.StorageUtil;
 
 import java.io.File;
+import java.io.IOException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.concurrent.TimeoutException;
@@ -27,11 +28,19 @@ public class MainActivity extends AppCompatActivity implements Runnable {
             //noinspection ResultOfMethodCallIgnored
             cacheRoot.mkdirs();
         }
-        Planck planck = new Planck.Builder(new OkHttpDataProvider(), cacheRoot)
+        final Planck planck = new Planck.Builder(new OkHttpDataProvider(), cacheRoot)
                 .build();
 
         mPlanckSource = planck.get("http://mysns1.video.meipai.com/6423448346911900673.mp4");
         new Thread(this, "Planck-TEST-Thread1").start();
+
+
+        getWindow().getDecorView().postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                planck.clearAll();
+            }
+        }, 3000);
     }
 
     @Override
@@ -41,6 +50,8 @@ public class MainActivity extends AppCompatActivity implements Runnable {
         try {
             length = planckSource.length(10000);
         } catch (TimeoutException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
             e.printStackTrace();
         }
 
@@ -57,7 +68,7 @@ public class MainActivity extends AppCompatActivity implements Runnable {
             return;
         }
 
-        int bufferSize = 512;
+        int bufferSize = 1;
         byte[] buffer = new byte[bufferSize];
 
         long pos = 0;
@@ -68,6 +79,8 @@ public class MainActivity extends AppCompatActivity implements Runnable {
                 if (size < 0) {
                     return;
                 }
+            } catch (IOException e) {
+                break;
             } catch (Exception e) {
                 e.printStackTrace();
             }

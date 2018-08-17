@@ -47,7 +47,7 @@ public class TempDataPartial extends CacheDataPartial implements StreamFetcher.D
     }
 
     @Override
-    protected void doInit() throws IOException {
+    protected void doInitStream() throws IOException {
         long fileDataLength;
         if (mFile.exists()) {
             fileDataLength = mFile.length();
@@ -58,7 +58,7 @@ public class TempDataPartial extends CacheDataPartial implements StreamFetcher.D
             fileDataLength = 0;
         }
 
-        super.doInit();
+        super.doInitStream();
 
         if (fileDataLength > TEMP_DATA_FOOTER_LEN) {
             long maxFileLen = mCacheInfo.mSize;
@@ -78,7 +78,7 @@ public class TempDataPartial extends CacheDataPartial implements StreamFetcher.D
     }
 
     @Override
-    protected long getPartialLength() {
+    protected long getPartialLength(int timeout) {
         return mCacheInfo.mSize;
     }
 

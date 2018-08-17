@@ -45,7 +45,7 @@ public class ProxyPlanckSource implements PlanckSource, UsageFinalizer {
     }
 
     @Override
-    public long length(int timeout) throws TimeoutException {
+    public long length(int timeout) throws TimeoutException, IOException {
         checkClosed();
         int initValue = awaitSourceInitialed();
         return initValue == 0 ? mSource.length(timeout) : initValue;
@@ -85,13 +85,13 @@ public class ProxyPlanckSource implements PlanckSource, UsageFinalizer {
         return mUsageCount.decrementAndGet() <= 0;
     }
 
-    private void checkClosed() {
+    private void checkClosed() throws IOException {
         if (mClosed.get()) {
-            throw new IllegalStateException("Current source is closed.");
+            throw new IOException("Current source is closed.");
         }
     }
 
-    private int awaitSourceInitialed() {
+    private int awaitSourceInitialed() throws IOException {
         if (mSource == null) {
             mInitializer.retryOnFailed();
             synchronized (mSourceLock) {

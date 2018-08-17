@@ -63,7 +63,17 @@ class PartialPlanckSource implements PlanckSource {
             DataPartial part = allChild[partIndex];
 
             // Part size
-            long partSize = part.length();
+            long partSize = part.length(timeout);
+
+            // Check time out
+            final int partTimeout = (int) (endTime - SystemClock.elapsedRealtime());
+            if (partTimeout <= 0) {
+                if (totalLoadSize == 0) {
+                    throw new TimeoutException();
+                }
+                // Cancel next part load
+                break;
+            }
 
             // Part max consumed size of offset partStartPos
             long partMaxConsumedSize = partSize - partStartPos;
@@ -77,20 +87,10 @@ class PartialPlanckSource implements PlanckSource {
                 needReadSize = 0;
             }
 
-            // Check time out
-            final int partTimeOut = (int) (endTime - SystemClock.elapsedRealtime());
-            if (partTimeOut <= 0) {
-                if (totalLoadSize == 0) {
-                    throw new TimeoutException();
-                }
-                // Cancel next part load
-                break;
-            }
-
             // Load data to buffer
             int partLoadSize = 0;
             try {
-                partLoadSize = part.get(partStartPos, buffer, partBufferOffset, partBufferSize, partTimeOut);
+                partLoadSize = part.get(partStartPos, buffer, partBufferOffset, partBufferSize, partTimeout);
             } catch (Exception e) {
                 // catch all exception
                 if (totalLoadSize == 0) {
@@ -109,7 +109,7 @@ class PartialPlanckSource implements PlanckSource {
             // Load succeed
             totalLoadSize += partLoadSize;
 
-            // If part load full, but need more
+            // If current part load to the end, but need more
             if (needReadSize > 0 && partLoadSize == partBufferSize && (++partIndex) < childSize) {
                 partBufferOffset += partStartPos + 1;
                 partStartPos = 0;

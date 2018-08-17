@@ -8,6 +8,7 @@ import net.qiujuer.library.planck.file.Md5FileNameGenerator;
 import net.qiujuer.library.planck.internal.ProxyPlanckSource;
 import net.qiujuer.library.planck.internal.contract.Initializer;
 import net.qiujuer.library.planck.internal.contract.UsageFinalizer;
+import net.qiujuer.library.planck.utils.ClearAllRunnable;
 import net.qiujuer.library.planck.utils.Logger;
 
 import java.io.File;
@@ -62,6 +63,21 @@ public class Planck {
             if (BuildConfig.DEBUG) {
                 Logger.d(TAG, "Source usage count:" + count);
             }
+        }
+    }
+
+    public void clearAll() {
+        synchronized (mSourceMap) {
+            for (String key : mSourceMap.keySet()) {
+                PlanckSource source = mSourceMap.get(key);
+                source.close();
+            }
+        }
+
+        try {
+            mExecutor.submit(new ClearAllRunnable()).get();
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
@@ -164,10 +180,12 @@ public class Planck {
 
             Thread t = new Thread(group, r,
                     namePrefix + threadNumber.getAndIncrement(), 0);
-            if (t.isDaemon())
+            if (t.isDaemon()) {
                 t.setDaemon(false);
-            if (t.getPriority() != Thread.MAX_PRIORITY)
+            }
+            if (t.getPriority() != Thread.MAX_PRIORITY) {
                 t.setPriority(Thread.MAX_PRIORITY);
+            }
             return t;
         }
     }
