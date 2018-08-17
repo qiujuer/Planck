@@ -142,8 +142,8 @@ public class TempDataPartial extends CacheDataPartial implements StreamFetcher.D
 
     @Override
     protected void doClose() {
-        super.doClose();
         releaseFetcher();
+        super.doClose();
     }
 
     @Override
@@ -181,6 +181,11 @@ public class TempDataPartial extends CacheDataPartial implements StreamFetcher.D
 
             // Really read the data to the local cache
             final RandomAccessFile randomAccessFile = mRandomAccessFile;
+            if (randomAccessFile == null) {
+                // This partial is closed
+                return;
+            }
+
             long countOfReads = cacheInfo.mSize - cacheWritePos;
             int totalReadErrorCount = MAX_READ_ERROR_COUNT;
             while (countOfReads > 0) {
