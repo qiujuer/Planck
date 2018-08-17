@@ -99,6 +99,11 @@ public class Planck {
                 }
             }
         }
+
+        @Override
+        public void post(Runnable runnable) {
+            mExecutor.execute(runnable);
+        }
     };
 
     public interface Store {
@@ -111,6 +116,8 @@ public class Planck {
         long maxPartialSize(long totalSize);
 
         void outOfSource(String httpUrl);
+
+        void post(Runnable runnable);
     }
 
     @SuppressWarnings("unused")

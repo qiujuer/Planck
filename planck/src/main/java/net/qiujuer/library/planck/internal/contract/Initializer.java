@@ -21,19 +21,17 @@ public abstract class Initializer implements Runnable {
 
     @Override
     public final void run() {
-        boolean isSucceed = this.onInitialize();
-
-        synchronized (this) {
-            mFuture = null;
-            mSucceed = isSucceed;
-            mOnceDone = true;
-        }
+        mSucceed = this.onInitialize();
+        mFuture = null;
+        mOnceDone = true;
     }
 
-    public synchronized final void cancel() {
-        if (mFuture != null) {
-            mFuture.cancel(true);
+    public final void cancel() {
+        Future future = mFuture;
+        if (future != null) {
+            future.cancel(true);
         }
+        mFuture = null;
         mExecutorService = null;
     }
 
@@ -41,12 +39,11 @@ public abstract class Initializer implements Runnable {
         if (mExecutorService == null) {
             return;
         }
-        synchronized (this) {
-            if (mOnceDone && !mSucceed) {
-                mOnceDone = false;
-                mSucceed = true;
-                startWith(mExecutorService);
-            }
+
+        if (mOnceDone && !mSucceed) {
+            mOnceDone = false;
+            mSucceed = true;
+            startWith(mExecutorService);
         }
     }
 
@@ -54,11 +51,10 @@ public abstract class Initializer implements Runnable {
         if (executorService == null) {
             return;
         }
-        synchronized (this) {
-            if (!mOnceDone) {
-                mExecutorService = executorService;
-                mFuture = executorService.submit(this);
-            }
+
+        if (!mOnceDone) {
+            mExecutorService = executorService;
+            mFuture = executorService.submit(this);
         }
     }
 }

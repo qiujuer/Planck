@@ -71,12 +71,7 @@ public class ProxyPlanckSource implements PlanckSource, UsageFinalizer {
             mClosed.set(true);
             mInitializer.cancel();
             mPlanckStore.outOfSource(mSourceUrl);
-            synchronized (mSourceLock) {
-                if (mSource != null) {
-                    mSource.close();
-                    mSource = null;
-                }
-            }
+            mPlanckStore.post(mSourceCloseRunnable);
         }
     }
 
@@ -187,6 +182,18 @@ public class ProxyPlanckSource implements PlanckSource, UsageFinalizer {
         PartialPlanckSource partialPlanckSource = new PartialPlanckSource(dataPartials, totalSize, partialSize);
         attachSource(partialPlanckSource);
     }
+
+    private Runnable mSourceCloseRunnable = new Runnable() {
+        @Override
+        public void run() {
+            synchronized (mSourceLock) {
+                if (mSource != null) {
+                    mSource.close();
+                    mSource = null;
+                }
+            }
+        }
+    };
 
     public Initializer initializer() {
         return mInitializer;
