@@ -7,6 +7,7 @@ import net.qiujuer.library.planck.data.DataProvider;
 import net.qiujuer.library.planck.data.StreamFetcher;
 
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 
 import okhttp3.Call;
 import okhttp3.OkHttpClient;
@@ -19,7 +20,9 @@ import okhttp3.ResponseBody;
  * @version 1.0.0
  * Create at: 2018/8/8
  */
+@SuppressWarnings("WeakerAccess")
 public class OkHttpDataProvider implements DataProvider {
+    private final static int TIMEOUT = 10000; //10s
     private static volatile Call.Factory internalClient;
     private final Call.Factory mClient;
 
@@ -27,7 +30,12 @@ public class OkHttpDataProvider implements DataProvider {
         if (internalClient == null) {
             synchronized (OkHttpDataProvider.class) {
                 if (internalClient == null) {
-                    internalClient = new OkHttpClient();
+                    internalClient = new OkHttpClient.Builder()
+                            .retryOnConnectionFailure(true)
+                            .connectTimeout(TIMEOUT, TimeUnit.MILLISECONDS)
+                            .readTimeout(TIMEOUT, TimeUnit.MILLISECONDS)
+                            .writeTimeout(TIMEOUT, TimeUnit.MILLISECONDS)
+                            .build();
                 }
             }
         }
