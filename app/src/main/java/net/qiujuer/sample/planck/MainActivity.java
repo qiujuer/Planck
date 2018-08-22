@@ -16,7 +16,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.concurrent.TimeoutException;
 
 public class MainActivity extends AppCompatActivity implements Runnable {
-    PlanckSource mPlanckSource;
+    private Planck mPlanck;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -28,72 +28,67 @@ public class MainActivity extends AppCompatActivity implements Runnable {
             //noinspection ResultOfMethodCallIgnored
             cacheRoot.mkdirs();
         }
-        final Planck planck = new Planck.Builder(new OkHttpDataProvider(), cacheRoot)
+
+        mPlanck = new Planck.Builder(new OkHttpDataProvider(), cacheRoot)
                 .build();
-
-        mPlanckSource = planck.get("http://mysns1.video.meipai.com/6423448346911900673.mp4");
         new Thread(this, "Planck-TEST-Thread1").start();
-
-
-        getWindow().getDecorView().postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                planck.clearAll();
-            }
-        }, 3000);
     }
 
     @Override
     public void run() {
-        PlanckSource planckSource = mPlanckSource;
-        long length = 0;
+        PlanckSource planckSource = mPlanck.get("http://mysns1.video.meipai.com/6423448346911900673.mp4");
         try {
-            length = planckSource.length(10000);
-        } catch (TimeoutException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-        Log.e("TAG", "Length:" + length);
-
-        if (length < 0) {
-            return;
-        }
-
-        MessageDigest digest;
-        try {
-            digest = MessageDigest.getInstance("MD5");
-        } catch (NoSuchAlgorithmException ignored) {
-            return;
-        }
-
-        int bufferSize = 1;
-        byte[] buffer = new byte[bufferSize];
-
-        long pos = 0;
-        while (length > 0) {
-            int size = 0;
+            long length = 0;
             try {
-                size = planckSource.get(pos, buffer, 0, bufferSize, 10000);
-                if (size < 0) {
-                    return;
-                }
+                length = planckSource.length(10000);
+            } catch (TimeoutException e) {
+                e.printStackTrace();
             } catch (IOException e) {
-                break;
-            } catch (Exception e) {
                 e.printStackTrace();
             }
-            pos += size;
-            length -= size;
-            digest.update(buffer, 0, size);
-        }
 
-        if (length == 0) {
-            String hexString = HashUtils.convertToHexString(digest.digest());
-            Log.e("TAG", "Hash:" + hexString + " " + ("89313db3df7c08af0cf68680285e79f2".equalsIgnoreCase(hexString)));
-        } else {
-            Log.e("TAG", "size:" + 0 + " length:" + length + " pos:" + pos);
+            Log.i("TAG", "Length:" + length);
+
+            if (length < 0) {
+                return;
+            }
+
+            MessageDigest digest;
+            try {
+                digest = MessageDigest.getInstance("MD5");
+            } catch (NoSuchAlgorithmException ignored) {
+                return;
+            }
+
+            int bufferSize = 128;
+            byte[] buffer = new byte[bufferSize];
+
+            long pos = 0;
+            while (length > 0) {
+                int size = 0;
+                try {
+                    size = planckSource.get(pos, buffer, 0, bufferSize, 10000);
+                    if (size < 0) {
+                        return;
+                    }
+                } catch (IOException e) {
+                    break;
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+                pos += size;
+                length -= size;
+                digest.update(buffer, 0, size);
+            }
+
+            if (length == 0) {
+                String hexString = HashUtils.convertToHexString(digest.digest());
+                Log.i("TAG", "Hash:" + hexString + " " + ("89313db3df7c08af0cf68680285e79f2".equalsIgnoreCase(hexString)));
+            } else {
+                Log.w("TAG", "size:" + 0 + " length:" + length + " pos:" + pos);
+            }
+        } finally {
+            planckSource.close();
         }
     }
 }

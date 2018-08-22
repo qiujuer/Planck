@@ -55,20 +55,19 @@ public class OkHttpStreamFetcher implements StreamFetcher, okhttp3.Callback {
 
     @Override
     public void cleanup() {
-        cancel();
+        Call local = mCall;
+        mCall = null;
+        if (local != null) {
+            try {
+                local.cancel();
+            } catch (Exception ignored) {
+            }
+        }
         IoUtil.close(mStream);
         IoUtil.close(mResponseBody);
         mStream = null;
         mResponseBody = null;
         mAtomicCallback.set(null);
-    }
-
-    @Override
-    public void cancel() {
-        Call local = mCall;
-        if (local != null) {
-            local.cancel();
-        }
     }
 
     @Override
