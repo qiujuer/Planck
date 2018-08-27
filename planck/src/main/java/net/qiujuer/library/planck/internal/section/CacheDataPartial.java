@@ -24,9 +24,9 @@ public class CacheDataPartial implements DataPartial {
     static final String DEFAULT_READ_FILE_MODE = "r";
     static final String DEFAULT_WRITE_FILE_MODE = "rw";
 
-    final File mFile;
+    private final File mFile;
     final Object mDataLock = new Object();
-    RandomAccessFile mRandomAccessFile;
+    volatile RandomAccessFile mRandomAccessFile;
 
     private final long mFileLength;
     private final String mFileModel;
@@ -45,14 +45,16 @@ public class CacheDataPartial implements DataPartial {
     private synchronized void initStream() throws IOException {
         if (!mInit) {
             try {
-                doInitStream();
+                doInitStream(mFile, mFileModel);
             } finally {
                 mInit = true;
             }
         } else {
-            synchronized (mDataLock) {
-                if (mRandomAccessFile == null) {
-                    throw FileException.throwIOException(mFile, FileException.FILE_NOT_FIND);
+            if (mRandomAccessFile == null) {
+                synchronized (mDataLock) {
+                    if (mRandomAccessFile == null) {
+                        throw FileException.throwIOException(mFile, FileException.FILE_NOT_FIND);
+                    }
                 }
             }
         }
@@ -112,16 +114,21 @@ public class CacheDataPartial implements DataPartial {
         doClose();
     }
 
-    protected void doInitStream() throws IOException {
+    protected File getFile() {
+        return mFile;
+    }
+
+    protected void doInitStream(final File file, final String fileMode) throws IOException {
         synchronized (mDataLock) {
             try {
-                mRandomAccessFile = new RandomAccessFile(mFile, mFileModel);
+                mRandomAccessFile = new RandomAccessFile(file, fileMode);
             } catch (FileNotFoundException e) {
-                throw FileException.throwIOException(mFile, FileException.FILE_NOT_FIND);
+                throw FileException.throwIOException(file, FileException.FILE_NOT_FIND);
             }
         }
     }
 
+    @SuppressWarnings("RedundantThrows")
     protected long getPartialLength(int timeout) throws IOException, TimeoutException {
         return mFileLength;
     }

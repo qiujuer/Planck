@@ -10,6 +10,7 @@ import net.qiujuer.library.planck.data.StreamFetcher;
 import net.qiujuer.library.planck.exception.FileException;
 import net.qiujuer.library.planck.exception.StreamInterruptException;
 import net.qiujuer.library.planck.utils.CacheUtil;
+import net.qiujuer.library.planck.utils.IoUtil;
 import net.qiujuer.library.planck.utils.Logger;
 
 import java.io.File;
@@ -47,18 +48,18 @@ public class TempDataPartial extends CacheDataPartial implements StreamFetcher.D
     }
 
     @Override
-    protected void doInitStream() throws IOException {
+    protected void doInitStream(final File file, final String fileMode) throws IOException {
         long fileDataLength;
-        if (mFile.exists()) {
-            fileDataLength = mFile.length();
+        if (file.exists()) {
+            fileDataLength = file.length();
         } else {
-            if (!mFile.createNewFile()) {
-                throw FileException.throwIOException(mFile, FileException.CREATE_ERROR);
+            if (!file.createNewFile()) {
+                throw FileException.throwIOException(file, FileException.CREATE_ERROR);
             }
             fileDataLength = 0;
         }
 
-        super.doInitStream();
+        super.doInitStream(file, fileMode);
 
         if (fileDataLength > TEMP_DATA_FOOTER_LEN) {
             long maxFileLen = mCacheInfo.mSize;
@@ -205,6 +206,33 @@ public class TempDataPartial extends CacheDataPartial implements StreamFetcher.D
                     }
                 }
             }
+
+            // sync to local file
+            randomAccessFile.getFD().sync();
+
+            synchronized (mDataLock) {
+                if (countOfReads == 0 && randomAccessFile.length() == (mCacheInfo.mSize + TEMP_DATA_FOOTER_LEN)) {
+                    randomAccessFile.setLength(mCacheInfo.mSize);
+                    // Close current random
+                    IoUtil.close(randomAccessFile);
+                    mRandomAccessFile = null;
+
+                    File currentTempFile = getFile();
+                    File file = CacheUtil.convertToOfficialCache(currentTempFile);
+                    if (file == null) {
+                        Logger.w(TAG, "ConvertToOfficialCache failed:" + currentTempFile.getAbsolutePath());
+                        // restore it
+                        super.doInitStream(currentTempFile, CacheDataPartial.DEFAULT_READ_FILE_MODE);
+                    } else {
+                        Logger.d(TAG, "ConvertToOfficialCache succeed: old:" + currentTempFile.getAbsolutePath() + ", new:" + file.getAbsolutePath());
+                        // change to new read io
+                        super.doInitStream(file, CacheDataPartial.DEFAULT_READ_FILE_MODE);
+                    }
+                } else {
+                    Logger.w(TAG, "Cannot convertToOfficialCache: countOfReads:" + countOfReads
+                            + ", ioLen:" + randomAccessFile.length() + ", needSize:" + mCacheInfo.mSize);
+                }
+            }
         } catch (IOException ignored) {
         } finally {
             releaseFetcher();
@@ -218,16 +246,18 @@ public class TempDataPartial extends CacheDataPartial implements StreamFetcher.D
     }
 
     private void retryLoadDataFromProvider() {
-        synchronized (mFetcherLock) {
-            final CacheUtil.CacheInfo cacheInfo = mCacheInfo;
-            final long totalSize = cacheInfo.mSize;
-            final long writePos = mWritePos.get();
+        synchronized (mDataLock) {
+            synchronized (mFetcherLock) {
+                final CacheUtil.CacheInfo cacheInfo = mCacheInfo;
+                final long totalSize = cacheInfo.mSize;
+                final long writePos = mWritePos.get();
 
-            if (writePos < totalSize && mFetcher == null) {
-                long downStart = cacheInfo.mStartPos + (cacheInfo.mSupportRandomReading ? writePos : 0);
-                long downSize = totalSize - writePos;
-                StreamFetcher fetcher = mFetcher = mProvider.buildStreamFetcher(mUrl, downStart, downSize);
-                fetcher.loadData(StreamFetcher.Priority.HIGH, this);
+                if (writePos < totalSize && mFetcher == null) {
+                    long downStart = cacheInfo.mStartPos + (cacheInfo.mSupportRandomReading ? writePos : 0);
+                    long downSize = totalSize - writePos;
+                    StreamFetcher fetcher = mFetcher = mProvider.buildStreamFetcher(mUrl, downStart, downSize);
+                    fetcher.loadData(StreamFetcher.Priority.HIGH, this);
+                }
             }
         }
     }

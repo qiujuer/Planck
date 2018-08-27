@@ -19,15 +19,19 @@ public class CacheUtil {
         return fileName.endsWith(CACHE_TEMP_FILE_EXTENSION);
     }
 
-    public static boolean convertToOfficialCache(File file) {
+    public static File convertToOfficialCache(File file) {
         String absolutePath = file.getAbsolutePath();
         int index = absolutePath.lastIndexOf(CACHE_TEMP_FILE_EXTENSION);
         if (index == -1) {
-            return false;
+            return null;
         }
         absolutePath = absolutePath.substring(0, index);
         File dest = new File(absolutePath + CACHE_FILE_EXTENSION);
-        return file.renameTo(dest);
+        if (file.renameTo(dest)) {
+            return dest;
+        } else {
+            return null;
+        }
     }
 
     public static CacheInfo getCacheInfo(File file) {

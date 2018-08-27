@@ -3,8 +3,7 @@ package net.qiujuer.sample.planck;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.os.Environment;
-
-import net.qiujuer.library.planck.utils.Logger;
+import android.util.Log;
 
 import java.io.File;
 
@@ -63,7 +62,7 @@ public class StorageUtil {
         if (appCacheDir == null) {
             @SuppressLint("SdCardPath")
             String cacheDirPath = String.format("/data/data/%s/cache/", context.getPackageName());
-            Logger.w(TAG, "Can't define system cache directory! '" + cacheDirPath + "%s' will be used.");
+            Log.w(TAG, "Can't define system cache directory! '" + cacheDirPath + "%s' will be used.");
             appCacheDir = new File(cacheDirPath);
         }
         return appCacheDir;
@@ -74,7 +73,7 @@ public class StorageUtil {
         File appCacheDir = new File(new File(dataDir, context.getPackageName()), "cache");
         if (!appCacheDir.exists()) {
             if (!appCacheDir.mkdirs()) {
-                Logger.w(TAG, "Unable to create external cache directory");
+                Log.w(TAG, "Unable to create external cache directory");
                 return null;
             }
         }
