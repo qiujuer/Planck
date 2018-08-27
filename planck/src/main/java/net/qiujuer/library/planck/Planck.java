@@ -3,7 +3,9 @@ package net.qiujuer.library.planck;
 import android.support.annotation.NonNull;
 
 import net.qiujuer.library.planck.data.DataProvider;
+import net.qiujuer.library.planck.file.FileLengthGenerator;
 import net.qiujuer.library.planck.file.FileNameGenerator;
+import net.qiujuer.library.planck.file.FixedFileSizeGenerator;
 import net.qiujuer.library.planck.file.Md5FileNameGenerator;
 import net.qiujuer.library.planck.internal.ProxyPlanckSource;
 import net.qiujuer.library.planck.internal.contract.Initializer;
@@ -30,10 +32,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class Planck {
     private final static String TAG = Planck.class.getSimpleName();
     private final static long DEFAULT_PARTIAL_SIZE = 1024 * 1024;
-    private final long mMaxPartialSize = DEFAULT_PARTIAL_SIZE;
     private final File mCacheRoot;
     private final DataProvider mDataProvider;
     private final FileNameGenerator mFileNameGenerator;
+    private final FileLengthGenerator mFileLengthGenerator;
     private final Map<String, PlanckSource> mSourceMap = new HashMap<>();
     private final ExecutorService mExecutor;
 
@@ -41,6 +43,7 @@ public class Planck {
         mCacheRoot = builder.mCacheRoot;
         mDataProvider = builder.mDataProvider;
         mFileNameGenerator = builder.mFileNameGenerator;
+        mFileLengthGenerator = builder.mFileLengthGenerator;
         ThreadPoolExecutor threadPoolExecutor = new ThreadPoolExecutor(1, 1,
                 30, TimeUnit.SECONDS,
                 new LinkedBlockingQueue<Runnable>(20), new PlanckThreadFactory(),
@@ -50,7 +53,7 @@ public class Planck {
     }
 
     public synchronized PlanckSource get(final String url) {
-        final String key = mFileNameGenerator.generate(url);
+        final String key = mFileNameGenerator.generatePlanckCacheFileName(url);
         PlanckSource source = null;
         try {
             synchronized (mSourceMap) {
@@ -109,13 +112,13 @@ public class Planck {
         }
 
         @Override
-        public long maxPartialSize(long totalSize) {
-            return mMaxPartialSize;
+        public long maxPartialSize(String httpUrl, long totalSize) {
+            return mFileLengthGenerator.generatePlanckCacheFileMaxLength(httpUrl, totalSize);
         }
 
         @Override
         public void outOfSource(String httpUrl) {
-            final String key = mFileNameGenerator.generate(httpUrl);
+            final String key = mFileNameGenerator.generatePlanckCacheFileName(httpUrl);
             synchronized (mSourceMap) {
                 if (mSourceMap.containsKey(key)) {
                     mSourceMap.remove(key);
@@ -136,7 +139,7 @@ public class Planck {
 
         FileNameGenerator fileNameGenerator();
 
-        long maxPartialSize(long totalSize);
+        long maxPartialSize(String httpUrl, long totalSize);
 
         void outOfSource(String httpUrl);
 
@@ -148,16 +151,23 @@ public class Planck {
         private File mCacheRoot;
         private DataProvider mDataProvider;
         private FileNameGenerator mFileNameGenerator;
+        private FileLengthGenerator mFileLengthGenerator;
 
         public Builder(@NonNull DataProvider provider, @NonNull File cacheRoot) {
             mDataProvider = provider;
             mCacheRoot = cacheRoot;
         }
 
-        public Builder setFileNameGenerator(FileNameGenerator fileNameGenerator) {
-            mFileNameGenerator = fileNameGenerator;
+        public Builder setFileNameGenerator(FileNameGenerator generator) {
+            mFileNameGenerator = generator;
             return this;
         }
+
+        public Builder setFileLengthGenerator(FileLengthGenerator generator) {
+            mFileLengthGenerator = generator;
+            return this;
+        }
+
 
         public Planck build() {
             if (mCacheRoot == null || !mCacheRoot.exists()) {
@@ -170,6 +180,10 @@ public class Planck {
 
             if (mFileNameGenerator == null) {
                 mFileNameGenerator = new Md5FileNameGenerator();
+            }
+
+            if (mFileLengthGenerator == null) {
+                mFileLengthGenerator = new FixedFileSizeGenerator(DEFAULT_PARTIAL_SIZE);
             }
 
             return new Planck(this);

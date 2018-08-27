@@ -4,6 +4,8 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
 /**
+ * Simply perform MD5 operation to obtain the unique cache file name
+ *
  * @author qiujuer Email: qiujuer@live.cn
  * @version 1.0.0
  * Create at: 2018/8/8
@@ -29,7 +31,7 @@ public class Md5FileNameGenerator implements FileNameGenerator {
 
 
     @Override
-    public String generate(String url) {
+    public String generatePlanckCacheFileName(String url) {
         return computeMD5(url);
     }
 }

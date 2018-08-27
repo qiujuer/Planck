@@ -143,7 +143,7 @@ public class ProxyPlanckSource implements PlanckSource, UsageFinalizer {
         } else {
             totalSize = dataInfo.getLength();
             supportRandomReading = dataInfo.isSupportRandomReading();
-            partialSize = supportRandomReading ? mPlanckStore.maxPartialSize(totalSize) : totalSize;
+            partialSize = supportRandomReading ? mPlanckStore.maxPartialSize(httpUrl, totalSize) : totalSize;
         }
 
         attachWithPartialCacheOrTemp(httpUrl, fileNamePrefix,
@@ -216,7 +216,7 @@ public class ProxyPlanckSource implements PlanckSource, UsageFinalizer {
             }
 
             final File cacheRoot = mPlanckStore.cacheRoot();
-            final String fileNamePrefix = mPlanckStore.fileNameGenerator().generate(sourceUrl);
+            final String fileNamePrefix = mPlanckStore.fileNameGenerator().generatePlanckCacheFileName(sourceUrl);
             final File[] childFiles = cacheRoot.listFiles(new FilenameFilter() {
                 @Override
                 public boolean accept(File file, String s) {
