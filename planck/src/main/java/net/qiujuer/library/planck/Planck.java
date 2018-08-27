@@ -16,8 +16,10 @@ import java.security.InvalidParameterException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -39,7 +41,10 @@ public class Planck {
         mCacheRoot = builder.mCacheRoot;
         mDataProvider = builder.mDataProvider;
         mFileNameGenerator = builder.mFileNameGenerator;
-        mExecutor = Executors.newSingleThreadExecutor(new PlanckThreadFactory());
+        mExecutor = new ThreadPoolExecutor(1, 1,
+                1, TimeUnit.MINUTES,
+                new LinkedBlockingQueue<Runnable>(20), new PlanckThreadFactory(),
+                new ThreadPoolExecutor.CallerRunsPolicy());
     }
 
     public synchronized PlanckSource get(final String url) {
