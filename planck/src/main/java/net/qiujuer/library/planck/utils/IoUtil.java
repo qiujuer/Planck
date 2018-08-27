@@ -9,13 +9,13 @@ import java.io.IOException;
  * Create at: 2018/8/8
  */
 public class IoUtil {
-    public static void close(Closeable... closeables){
-        if(closeables==null){
+    public static void close(Closeable... closeables) {
+        if (closeables == null) {
             return;
         }
 
         for (Closeable closeable : closeables) {
-            if(closeable==null){
+            if (closeable == null) {
                 continue;
             }
             try {
