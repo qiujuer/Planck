@@ -114,7 +114,7 @@ public class CacheDataPartial implements DataPartial {
         doClose();
     }
 
-    protected File getFile() {
+    public File getFile() {
         return mFile;
     }
 

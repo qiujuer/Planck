@@ -2,6 +2,8 @@ package net.qiujuer.library.planck.internal.section;
 
 import net.qiujuer.library.planck.PlanckSource;
 
+import java.io.File;
+
 /**
  * To used partial data source
  *
@@ -10,5 +12,5 @@ import net.qiujuer.library.planck.PlanckSource;
  * Create at: 2018/8/9
  */
 public interface DataPartial extends PlanckSource {
-
+    File getFile();
 }

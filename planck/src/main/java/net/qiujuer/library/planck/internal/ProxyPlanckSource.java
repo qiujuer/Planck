@@ -13,10 +13,15 @@ import net.qiujuer.library.planck.internal.section.CacheDataPartial;
 import net.qiujuer.library.planck.internal.section.DataPartial;
 import net.qiujuer.library.planck.internal.section.TempDataPartial;
 import net.qiujuer.library.planck.utils.CacheUtil;
+import net.qiujuer.library.planck.utils.IoUtil;
+import net.qiujuer.library.planck.utils.Logger;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.FilenameFilter;
 import java.io.IOException;
+import java.nio.channels.FileChannel;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -29,6 +34,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * Create at: 2018/8/11
  */
 public class ProxyPlanckSource implements PlanckSource, UsageFinalizer {
+    private static final String TAG = ProxyPlanckSource.class.getSimpleName();
     private final static int INIT_TIMEOUT_VALUE = 15 * 1000;
     private final AtomicInteger mUsageCount = new AtomicInteger(0);
     private final AtomicBoolean mClosed = new AtomicBoolean(false);
@@ -161,7 +167,7 @@ public class ProxyPlanckSource implements PlanckSource, UsageFinalizer {
         final int fileCount = (int) ((totalSize + partialSize - 1) / partialSize);
 
         DataPartial[] dataPartials = new DataPartial[fileCount];
-
+        boolean hasUnfinishedFile = false;
         for (int i = 0; i < fileCount; i++) {
             final long partStartPos = partialSize * i;
             final long partSize = Math.min(partialSize, totalSize - partialSize * i);
@@ -175,8 +181,24 @@ public class ProxyPlanckSource implements PlanckSource, UsageFinalizer {
             } else {
                 File tempFile = CacheUtil.generateTempFile(cacheRoot, fileName);
                 partial = new TempDataPartial(tempFile, httpUrl, dataProvider);
+                hasUnfinishedFile = true;
             }
             dataPartials[i] = partial;
+        }
+
+        if (!hasUnfinishedFile) {
+            final String completedFileName = CacheUtil.generateCompletedName(fileNamePrefix, totalSize);
+            File completedCacheFile = CacheUtil.generateCacheFile(cacheRoot, completedFileName);
+            try {
+                if (margePartialCacheFile(completedCacheFile, dataPartials)) {
+                    Logger.d(TAG, "MargePartialCacheFile succeed:" + completedCacheFile.getName());
+                    removeAndClosePartialCacheFile(dataPartials);
+                    attachWithLocalSource(completedCacheFile.getAbsolutePath());
+                    return;
+                }
+            } catch (IOException e) {
+                Logger.e(TAG, "MargePartialCacheFile failed:" + completedCacheFile.getName());
+            }
         }
 
         PartialPlanckSource partialPlanckSource = new PartialPlanckSource(dataPartials, totalSize, partialSize);
@@ -188,7 +210,7 @@ public class ProxyPlanckSource implements PlanckSource, UsageFinalizer {
         public void run() {
             synchronized (mSourceLock) {
                 if (mSource != null) {
-                    mSource.close();
+                    IoUtil.close(mSource);
                     mSource = null;
                 }
             }
@@ -224,18 +246,6 @@ public class ProxyPlanckSource implements PlanckSource, UsageFinalizer {
                 }
             });
 
-            // Check and load cache complete file source
-            if (childFiles.length == 1) {
-                File childFile = childFiles[0];
-                if (childFile.exists()) {
-                    String childFileName = CacheUtil.removeNameExtension(childFile.getName());
-                    if (childFileName.equalsIgnoreCase(fileNamePrefix)) {
-                        attachWithLocalSource(sourceUrl);
-                        return true;
-                    }
-                }
-            }
-
             // Check and load network source
             if (childFiles.length == 0) {
                 return attachWithNetwork(sourceUrl, fileNamePrefix);
@@ -244,13 +254,41 @@ public class ProxyPlanckSource implements PlanckSource, UsageFinalizer {
             // Check and load partial cache source
             final int fileNamePrefixIndex = fileNamePrefix.length();
             final String firstChildFileNameMask = "-0-0-";
+            final String completedFileNameMask = "-T-";
             File firstChildFile = null;
+            File completedChildFile = null;
+
             for (File childFile : childFiles) {
-                if (childFile.getName().startsWith(firstChildFileNameMask, fileNamePrefixIndex)) {
+                String childFileName = childFile.getName();
+                if (firstChildFile == null && childFileName.startsWith(firstChildFileNameMask, fileNamePrefixIndex)) {
                     firstChildFile = childFile;
+                } else if (completedChildFile == null && childFileName.startsWith(completedFileNameMask, fileNamePrefixIndex)) {
+                    completedChildFile = childFile;
+                }
+
+                if (completedChildFile != null && firstChildFile != null) {
                     break;
                 }
             }
+
+            // Check and load cache complete file source
+            if (completedChildFile != null && completedChildFile.exists()) {
+                if (CacheUtil.verifyCompletedFileIsFinish(completedChildFile.getName(), completedChildFile.length())) {
+                    // Clear invalid cache file
+                    if (childFiles.length > 1) {
+                        for (File childFile : childFiles) {
+                            if (completedChildFile != childFile) {
+                                //noinspection ResultOfMethodCallIgnored
+                                childFile.delete();
+                            }
+                        }
+                    }
+                    // Start
+                    attachWithLocalSource(completedChildFile.getAbsolutePath());
+                    return true;
+                }
+            }
+
 
             // Find first file
             if (firstChildFile == null) {
@@ -273,4 +311,49 @@ public class ProxyPlanckSource implements PlanckSource, UsageFinalizer {
             return true;
         }
     };
+
+
+    private static void removeAndClosePartialCacheFile(DataPartial[] dataPartials) {
+        for (DataPartial dataPartial : dataPartials) {
+            IoUtil.close(dataPartial);
+            //noinspection ResultOfMethodCallIgnored
+            dataPartial.getFile().delete();
+        }
+    }
+
+    private static boolean margePartialCacheFile(File outFile, DataPartial[] dataPartials) throws IOException {
+        if (outFile.exists()) {
+            if (!outFile.delete()) {
+                return false;
+            }
+        }
+
+        if (!outFile.createNewFile()) {
+            return false;
+        }
+
+        FileOutputStream fileOutputStream = null;
+        try {
+            fileOutputStream = new FileOutputStream(outFile);
+            FileChannel out = fileOutputStream.getChannel();
+            for (DataPartial dataPartial : dataPartials) {
+                File file = dataPartial.getFile();
+                long length = file.length();
+                FileInputStream inputStream = null;
+                try {
+                    inputStream = new FileInputStream(file);
+                    FileChannel inChannel = inputStream.getChannel();
+                    for (long p = 0; p < length; ) {
+                        p += inChannel.transferTo(p, length - p, out);
+                    }
+                } finally {
+                    IoUtil.close(inputStream);
+                }
+            }
+        } finally {
+            IoUtil.close(fileOutputStream);
+        }
+
+        return true;
+    }
 }

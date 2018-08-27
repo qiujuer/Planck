@@ -11,6 +11,7 @@ import net.qiujuer.library.planck.internal.ProxyPlanckSource;
 import net.qiujuer.library.planck.internal.contract.Initializer;
 import net.qiujuer.library.planck.internal.contract.UsageFinalizer;
 import net.qiujuer.library.planck.utils.ClearAllRunnable;
+import net.qiujuer.library.planck.utils.IoUtil;
 import net.qiujuer.library.planck.utils.Logger;
 
 import java.io.File;
@@ -80,7 +81,7 @@ public class Planck {
         synchronized (mSourceMap) {
             for (String key : mSourceMap.keySet()) {
                 PlanckSource source = mSourceMap.get(key);
-                source.close();
+                IoUtil.close(source);
             }
         }
 
@@ -88,6 +89,10 @@ public class Planck {
             mExecutor.submit(new ClearAllRunnable()).get();
         } catch (Exception e) {
             e.printStackTrace();
+        }
+
+        if (mSourceMap.size() > 0) {
+            clearAll();
         }
     }
 

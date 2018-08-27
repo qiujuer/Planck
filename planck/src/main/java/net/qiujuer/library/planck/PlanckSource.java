@@ -1,5 +1,6 @@
 package net.qiujuer.library.planck;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.util.concurrent.TimeoutException;
 
@@ -8,7 +9,7 @@ import java.util.concurrent.TimeoutException;
  * @version 1.0.0
  * Create at: 2018/8/8
  */
-public interface PlanckSource {
+public interface PlanckSource extends Closeable {
     int INVALID_VALUES_INIT_NETWORK_ERROR = -10001;
     int INVALID_VALUES_INIT_INTERRUPTED = -10002;
     int INVALID_VALUES_INIT_TIMEOUT = -10003;
@@ -48,9 +49,4 @@ public interface PlanckSource {
      * @throws TimeoutException on timeout
      */
     int get(long position, byte[] buffer, int offset, int size, int timeout) throws IOException, TimeoutException;
-
-    /**
-     * Close current data source
-     */
-    void close();
 }

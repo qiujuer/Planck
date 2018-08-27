@@ -15,6 +15,21 @@ public class CacheUtil {
         return String.format("%s-%s-%s-%s-%s-%s", name, index, startPos, size, totalSize, supportRandomReading ? "A" : "B");
     }
 
+    public static String generateCompletedName(String name, long totalSize) {
+        return String.format("%s-T-%s", name, totalSize);
+    }
+
+    public static boolean verifyCompletedFileIsFinish(String name, long fileSize) {
+        name = removeNameExtension(name);
+        int i = name.lastIndexOf("-");
+        if (i != -1) {
+            String sizeStr = name.substring(i + 1);
+            long size = Long.parseLong(sizeStr);
+            return size == fileSize;
+        }
+        return false;
+    }
+
     public static boolean isTemp(String fileName) {
         return fileName.endsWith(CACHE_TEMP_FILE_EXTENSION);
     }
