@@ -41,10 +41,12 @@ public class Planck {
         mCacheRoot = builder.mCacheRoot;
         mDataProvider = builder.mDataProvider;
         mFileNameGenerator = builder.mFileNameGenerator;
-        mExecutor = new ThreadPoolExecutor(1, 1,
-                1, TimeUnit.MINUTES,
+        ThreadPoolExecutor threadPoolExecutor = new ThreadPoolExecutor(1, 1,
+                30, TimeUnit.SECONDS,
                 new LinkedBlockingQueue<Runnable>(20), new PlanckThreadFactory(),
                 new ThreadPoolExecutor.CallerRunsPolicy());
+        threadPoolExecutor.allowCoreThreadTimeOut(true);
+        mExecutor = threadPoolExecutor;
     }
 
     public synchronized PlanckSource get(final String url) {

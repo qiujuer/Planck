@@ -15,7 +15,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.concurrent.TimeoutException;
 
 public class MainActivity extends AppCompatActivity implements Runnable {
-    private Planck mPlanck;
+    private static Planck mPlanck;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -28,8 +28,11 @@ public class MainActivity extends AppCompatActivity implements Runnable {
             cacheRoot.mkdirs();
         }
 
-        mPlanck = new Planck.Builder(new OkHttpDataProvider(), cacheRoot)
-                .build();
+        if (mPlanck == null) {
+            mPlanck = new Planck.Builder(new OkHttpDataProvider(), cacheRoot)
+                    .build();
+        }
+
         new Thread(this, "Planck-TEST-Thread1").start();
     }
 
