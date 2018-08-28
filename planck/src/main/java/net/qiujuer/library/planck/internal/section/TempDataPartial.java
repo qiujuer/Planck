@@ -224,7 +224,7 @@ public class TempDataPartial extends CacheDataPartial implements StreamFetcher.D
                         // restore it
                         super.doInitStream(currentTempFile, CacheDataPartial.DEFAULT_READ_FILE_MODE);
                     } else {
-                        Logger.d(TAG, "ConvertToOfficialCache succeed: old:" + currentTempFile.getName() + ", new:" + file.getName());
+                        Logger.d(TAG, "ConvertToOfficialCache succeed:[" + currentTempFile.getName() + ", " + file.getName() + "]");
                         // change to new read io
                         super.doInitStream(file, CacheDataPartial.DEFAULT_READ_FILE_MODE);
                     }

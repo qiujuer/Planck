@@ -32,80 +32,11 @@ public class MainActivity extends AppCompatActivity implements Runnable {
 
         if (mPlanck == null) {
             mPlanck = new Planck.Builder(new OkHttpDataProvider(), cacheRoot)
-                    .setFileLengthGenerator(new FixedFileSizeGenerator(1024 * 1024))
+                    .setFileLengthGenerator(new FixedFileSizeGenerator(256 * 1024))
                     .build();
         }
 
-        new Thread(this, "Planck-TEST-Thread1").start();
-        new Thread(this, "Planck-TEST-Thread2").start();
-        new Thread(this, "Planck-TEST-Thread3").start();
-        new Thread(this, "Planck-TEST-Thread4").start();
-        new Thread(this, "Planck-TEST-Thread5").start();
-        new Thread(this, "Planck-TEST-Thread6").start();
-        new Thread(this, "Planck-TEST-Thread7").start();
-        new Thread(this, "Planck-TEST-Thread8").start();
-        new Thread(this, "Planck-TEST-Thread9").start();
-        new Thread(this, "Planck-TEST-Thread10").start();
-        new Thread(this, "Planck-TEST-Thread11").start();
-        new Thread(this, "Planck-TEST-Thread12").start();
-        new Thread(this, "Planck-TEST-Thread13").start();
-        new Thread(this, "Planck-TEST-Thread14").start();
-        new Thread(this, "Planck-TEST-Thread1").start();
-        new Thread(this, "Planck-TEST-Thread2").start();
-        new Thread(this, "Planck-TEST-Thread3").start();
-        new Thread(this, "Planck-TEST-Thread4").start();
-        new Thread(this, "Planck-TEST-Thread5").start();
-        new Thread(this, "Planck-TEST-Thread6").start();
-        new Thread(this, "Planck-TEST-Thread7").start();
-        new Thread(this, "Planck-TEST-Thread8").start();
-        new Thread(this, "Planck-TEST-Thread9").start();
-        new Thread(this, "Planck-TEST-Thread10").start();
-        new Thread(this, "Planck-TEST-Thread11").start();
-        new Thread(this, "Planck-TEST-Thread12").start();
-        new Thread(this, "Planck-TEST-Thread13").start();
-        new Thread(this, "Planck-TEST-Thread14").start();
-        new Thread(this, "Planck-TEST-Thread1").start();
-        new Thread(this, "Planck-TEST-Thread2").start();
-        new Thread(this, "Planck-TEST-Thread3").start();
-        new Thread(this, "Planck-TEST-Thread4").start();
-        new Thread(this, "Planck-TEST-Thread5").start();
-        new Thread(this, "Planck-TEST-Thread6").start();
-        new Thread(this, "Planck-TEST-Thread7").start();
-        new Thread(this, "Planck-TEST-Thread8").start();
-        new Thread(this, "Planck-TEST-Thread9").start();
-        new Thread(this, "Planck-TEST-Thread10").start();
-        new Thread(this, "Planck-TEST-Thread11").start();
-        new Thread(this, "Planck-TEST-Thread12").start();
-        new Thread(this, "Planck-TEST-Thread13").start();
-        new Thread(this, "Planck-TEST-Thread14").start();
-        new Thread(this, "Planck-TEST-Thread1").start();
-        new Thread(this, "Planck-TEST-Thread2").start();
-        new Thread(this, "Planck-TEST-Thread3").start();
-        new Thread(this, "Planck-TEST-Thread4").start();
-        new Thread(this, "Planck-TEST-Thread5").start();
-        new Thread(this, "Planck-TEST-Thread6").start();
-        new Thread(this, "Planck-TEST-Thread7").start();
-        new Thread(this, "Planck-TEST-Thread8").start();
-        new Thread(this, "Planck-TEST-Thread9").start();
-        new Thread(this, "Planck-TEST-Thread10").start();
-        new Thread(this, "Planck-TEST-Thread11").start();
-        new Thread(this, "Planck-TEST-Thread12").start();
-        new Thread(this, "Planck-TEST-Thread13").start();
-        new Thread(this, "Planck-TEST-Thread14").start();
-        new Thread(this, "Planck-TEST-Thread1").start();
-        new Thread(this, "Planck-TEST-Thread2").start();
-        new Thread(this, "Planck-TEST-Thread3").start();
-        new Thread(this, "Planck-TEST-Thread4").start();
-        new Thread(this, "Planck-TEST-Thread5").start();
-        new Thread(this, "Planck-TEST-Thread6").start();
-        new Thread(this, "Planck-TEST-Thread7").start();
-        new Thread(this, "Planck-TEST-Thread8").start();
-        new Thread(this, "Planck-TEST-Thread9").start();
-        new Thread(this, "Planck-TEST-Thread10").start();
-        new Thread(this, "Planck-TEST-Thread11").start();
-        new Thread(this, "Planck-TEST-Thread12").start();
-        new Thread(this, "Planck-TEST-Thread13").start();
-        new Thread(this, "Planck-TEST-Thread14").start();
+        new Thread(this, "Planck-TEST-Thread").start();
     }
 
     @Override
@@ -134,7 +65,7 @@ public class MainActivity extends AppCompatActivity implements Runnable {
                 return;
             }
 
-            int bufferSize = 2;
+            int bufferSize = 1;
             byte[] buffer = new byte[bufferSize];
 
             long pos = 0;
