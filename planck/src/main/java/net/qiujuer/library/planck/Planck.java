@@ -18,6 +18,7 @@ import java.io.File;
 import java.security.InvalidParameterException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadFactory;
@@ -53,6 +54,12 @@ public class Planck {
         mExecutor = threadPoolExecutor;
     }
 
+    /**
+     * Get proxy to local cache source from url
+     *
+     * @param url File url or Network path
+     * @return PlanckSource, you can read data with it.
+     */
     public synchronized PlanckSource get(final String url) {
         final String key = mFileNameGenerator.generatePlanckCacheFileName(url);
         PlanckSource source = null;
@@ -77,6 +84,10 @@ public class Planck {
         }
     }
 
+    /**
+     * If you need clear cache files, please use {@link #getUsingSourceKeys()}
+     */
+    @Deprecated
     public void clearAll() {
         synchronized (mSourceMap) {
             for (String key : mSourceMap.keySet()) {
@@ -92,8 +103,21 @@ public class Planck {
         }
 
         if (mSourceMap.size() > 0) {
+            //noinspection deprecation
             clearAll();
         }
+    }
+
+    /**
+     * When you remove files, you should remove files that are not in use and ignore them when they are in use;
+     * The current method can get the file prefix being used, You need to call fileName.contains(getUsingSourceKeys()[0]) to check if ignore.
+     *
+     * @return file prefix being with using
+     */
+    @SuppressWarnings({"WeakerAccess", "unused"})
+    public String[] getUsingSourceKeys() {
+        Set<String> strings = mSourceMap.keySet();
+        return strings.toArray(new String[strings.size()]);
     }
 
     private void dispatchInitializer(Initializer initializer) {
