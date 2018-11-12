@@ -27,7 +27,7 @@ version = VERSION_NAME
 afterEvaluate { project ->
     install {
         repositories.mavenInstaller {
-            configurePOM(pom);
+            configurePOM(pom)
         }
     }
 
@@ -116,8 +116,8 @@ def getRepositoryGPGPassword() {
 }
 
 bintray {
-    user = getRepositoryUser();
-    key = getRepositoryKey();
+    user = getRepositoryUser()
+    key = getRepositoryKey()
 
     group = POM_GROUP_ID
     version = VERSION_NAME
@@ -136,9 +136,9 @@ bintray {
         version {
             desc = POM_DESCRIPTION
             gpg {
-                sign = !(getRepositoryGPGPassword() == null || getRepositoryGPGPassword() == "");
+                sign = !(getRepositoryGPGPassword() == null || getRepositoryGPGPassword() == "")
                 // true //Determines whether to GPG sign the files. The default is false
-                passphrase = getRepositoryGPGPassword();
+                passphrase = getRepositoryGPGPassword()
                 //Optional. The passphrase for GPG signing'
             }
         }

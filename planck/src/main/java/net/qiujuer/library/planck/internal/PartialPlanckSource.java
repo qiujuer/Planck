@@ -111,7 +111,9 @@ class PartialPlanckSource implements PlanckSource {
 
             // If current part load to the end, but need more
             if (needReadSize > 0 && partLoadSize == partBufferSize && (++partIndex) < childSize) {
-                partBufferOffset += partStartPos + 1;
+                // return buffer offset increment the read part length
+                partBufferOffset += partLoadSize;
+                // the next part read position move to first
                 partStartPos = 0;
             } else {
                 break;
